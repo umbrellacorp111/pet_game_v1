@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Питомец Канала v5 — PvP-АРЕНА
@@ -15,8 +16,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 
-BOT_TOKEN = os.environ["BOT_TOKEN"]
-WEBAPP_URL = os.environ["WEBAPP_URL"]
+BOT_TOKEN = os.environ.get("BOT_TOKEN") or exit("BOT_TOKEN not set")
+WEBAPP_URL = os.environ.get("WEBAPP_URL") or exit("WEBAPP_URL not set")
 CHANNEL_ID = os.environ.get("CHANNEL_ID", "")
 PORT = int(os.environ.get("PORT", 8080))
 DB_PATH = os.environ.get("DB_PATH", "game.db")
