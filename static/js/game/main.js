@@ -194,7 +194,7 @@
   /* тач-зоны героя (док. 010) */
   addEventListener("pointerdown", e => {
     if (GS.mode !== "play") return;
-    if (e.target.closest(".uiLayer,.sheet,.overlay,.gameOv,#notifStack")) return;
+    if (e.target.closest(".uiLayer,.sheet,.overlay,.gameOv,#notifStack,#roomPanel")) return;
     const hit = Engine.raycast(e.clientX, e.clientY, hero.zones);
     if (hit) Anim.touch(hit.object.userData.zone, hit.point);
   });

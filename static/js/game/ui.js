@@ -322,7 +322,7 @@ window.UI = (() => {
       renderShop();
     });
     /* делегат панели комнаты — вместо inline onclick */
-    $("roomPanel").onclick = e => {
+    $("roomPanel").addEventListener("click", e => {
       const btn = e.target.closest("button[data-action]");
       if (!btn || btn.disabled) return;
       const a = btn.dataset.action;
@@ -333,7 +333,9 @@ window.UI = (() => {
       else if (a === "shower") shower();
       else if (a === "arena") Arena.start();
       else if (a === "sleep" || a === "wake") sleep();
-    };
+    });
+    /* не даём raycast-у main.js срабатывать при нажатии на кнопки панели */
+    $("roomPanel").addEventListener("pointerdown", e => { e.stopPropagation() });
     $("dailyBtn").onclick = async()=>{
       try {
       const d = await Api.call("daily"); if(!d) return;
