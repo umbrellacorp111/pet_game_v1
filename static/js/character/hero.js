@@ -187,15 +187,21 @@ window.Hero = (() => {
 
           const mixer = new THREE.AnimationMixer(fbx);
           const _clips = {}, _actions = {};
-          let _currentAction = null;
-          // Первая анимация — idle
+          let _currentAction = null, _finishHandler = null;
+          // Первая анимация — idle (зациклена)
           if (fbx.animations && fbx.animations[0]){
             _clips.idle = fbx.animations[0];
             _currentAction = mixer.clipAction(_clips.idle);
+            _currentAction.setLoop(THREE.LoopRepeat);
             _currentAction.play();
           }
           function playAnim(name, fadeIn = 0.3){
             if (!_clips[name]) return false;
+            // Удаляем старый обработчик finished
+            if (_finishHandler){
+              mixer.removeEventListener("finished", _finishHandler);
+              _finishHandler = null;
+            }
             const next = _actions[name] || (_actions[name] = mixer.clipAction(_clips[name]));
             if (_currentAction && _currentAction !== next){
               _currentAction.fadeOut(fadeIn);
@@ -204,6 +210,26 @@ window.Hero = (() => {
               next.play();
             }
             _currentAction = next;
+            if (name !== "idle"){
+              next.setLoop(THREE.LoopOnce);
+              next.clampWhenFinished = true;
+              _finishHandler = function onFinish(e){
+                if (e.action === next){
+                  mixer.removeEventListener("finished", _finishHandler);
+                  _finishHandler = null;
+                  const idle = _actions.idle || (_actions.idle = mixer.clipAction(_clips.idle));
+                  if (idle){
+                    next.fadeOut(fadeIn);
+                    idle.reset().fadeIn(fadeIn).play();
+                    idle.setLoop(THREE.LoopRepeat);
+                    _currentAction = idle;
+                  }
+                }
+              };
+              mixer.addEventListener("finished", _finishHandler);
+            } else {
+              next.setLoop(THREE.LoopRepeat);
+            }
             return true;
           }
 

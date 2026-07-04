@@ -11,10 +11,18 @@ window.Games = (() => {
     const ov = $("catchOv");
     ov.classList.add("on"); $("catchEnd").classList.remove("on");
     const c = $("gCanvas"), x = c.getContext("2d");
-    c.width = c.clientWidth * devicePixelRatio;
-    c.height = c.clientHeight * devicePixelRatio;
-    x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-    const W = c.clientWidth, H = c.clientHeight;
+    let W, H, _oldW, _oldH;
+    function resizeCanvas(force){
+      const w = c.clientWidth, h = c.clientHeight;
+      if (w < 1 || h < 1) return false;
+      if (!force && w === _oldW && h === _oldH) return true;
+      c.width = w * devicePixelRatio;
+      c.height = h * devicePixelRatio;
+      x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+      W = _oldW = w; H = _oldH = h;
+      return true;
+    }
+    if (!resizeCanvas(true)){ W = 300; H = 400 } // fallback
     G = {token, score:0, t0:performance.now(), dur:30000, items:[], pops:[],
          over:false, streak:0, lastHit:0, onEnd};
     $("gScore").textContent = "0";
@@ -55,12 +63,15 @@ window.Games = (() => {
     (function loop(){
       if (!G || G.over) return;
       const el = performance.now()-G.t0;
+      // Пересчитываем размер канваса на случай ресайза
+      resizeCanvas();
       if (el-lastSpawn > Math.max(280, 700-el/60)){ spawn(); lastSpawn = el }
       $("gTimerFill").style.width = Math.max(0, 100-100*el/G.dur)+"%";
       x.clearRect(0,0,W,H);
-      x.font = "34px serif"; x.textAlign = "center"; x.textBaseline = "middle";
+      x.font = "34px system-ui, 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif";
+      x.textAlign = "center"; x.textBaseline = "middle";
       G.items = G.items.filter(it => { it.y += it.vy*2; x.fillText(it.e, it.x, it.y); return it.y < H+40 });
-      x.font = "800 18px Manrope";
+      x.font = "800 18px 'Manrope', system-ui";
       G.pops = G.pops.filter(p => { p.t -= .03; p.y -= 1.5;
         x.fillStyle = p.bad ? `rgba(255,94,138,${p.t})` : `rgba(255,201,60,${p.t})`;
         x.fillText(p.txt, p.x, p.y); return p.t > 0 });

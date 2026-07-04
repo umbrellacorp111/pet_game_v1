@@ -91,7 +91,7 @@ body[data-sleeping="1"] #vignette{background:radial-gradient(120% 100% at 50% 45
 .mmSub{color:var(--dim);font-size:13px;font-weight:700;margin-top:4px;margin-bottom:20px}
 .mmVer{color:var(--dim);font-size:10px;font-weight:600;margin-top:16px;opacity:.4}
 .btn.secondary{background:transparent;color:var(--ink);box-shadow:none;border:1px solid var(--line);
-  margin-top:10px;font-size:13px;padding:13px}
+  margin-top:10px;font-size:13px;padding:13px;touch-action:manipulation;min-height:44px}
 .btn.secondary:active{transform:translateY(3px);background:rgba(255,255,255,.04)}
 
 /* ---------- ВЫБОР ГЕРОЯ ---------- */
@@ -372,7 +372,7 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 @keyframes raySpin{to{transform:translateX(-50%) rotate(360deg)}}
 .btn{margin-top:18px;border:none;width:100%;padding:15px;border-radius:17px;font-family:'Unbounded';
   font-weight:700;font-size:14.5px;color:#180D33;cursor:pointer;background:linear-gradient(180deg,#FFE07A,var(--gold));
-  box-shadow:0 7px 0 rgba(0,0,0,.3)}
+  box-shadow:0 7px 0 rgba(0,0,0,.3);touch-action:manipulation;min-height:48px}
 .btn:active{transform:translateY(4px);box-shadow:0 3px 0 rgba(0,0,0,.3)}
 .btn[disabled]{filter:grayscale(.8);opacity:.55}
 .onb input{width:100%;margin-top:16px;padding:15px;border-radius:15px;border:1px solid var(--line);
