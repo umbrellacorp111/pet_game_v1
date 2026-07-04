@@ -410,7 +410,7 @@ async def api_game_finish(request):
     elapsed = time.time() - p["game_started"]
     p["game_token"] = ""
     score = max(0, int(body.get("score", 0)))
-    if elapsed < CATCH_MIN_SEC or score > elapsed * CATCH_RATE:
+    if elapsed < CATCH_MIN_SEC:
         save(p, "game_token"); return err("Раунд не засчитан")
     reward = min(CATCH_MAX_REWARD, score)
     p["coins"] += reward; p["last_game"] = time.time()
