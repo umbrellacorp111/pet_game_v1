@@ -117,15 +117,15 @@ window.UI = (() => {
 
   /* ---------- панели комнат ---------- */
   const ROOM_PANELS = {
-    living(){ return `<button class="bigAct g-viol" onclick="UI.openSheet('quests')">📋 Квесты дня<small>3 задания · награды 🪙</small></button>` },
+    living(){ return `<button class="bigAct g-viol" data-action="quests">📋 Квесты дня<small>3 задания · награды 🪙</small></button>` },
     kitchen(){ const s = S(); if (!s) return ''; return Object.entries(s.foods).map(([id,f]) =>
-      `<button class="food" onclick="UI.feed('${id}')"><span class="fe">${f.emoji}</span><b>${f.name}</b><small>${f.price} 🪙</small></button>`).join("") },
+      `<button class="food" data-action="feed-${id}"><span class="fe">${f.emoji}</span><b>${f.name}</b><small>${f.price} 🪙</small></button>`).join("") },
     game(){ const s = S(); if (!s) return '';
-      return `<button class="bigAct g-gold" ${s.game_cd>0?"disabled":""} onclick="Games.startCatch()">
+      return `<button class="bigAct g-gold" ${s.game_cd>0?"disabled":""} data-action="catch">
         🍔 Лови еду<small>${s.game_cd>0?"отдых "+s.game_cd+" c":"до 45 🪙 · рекорд "+s.best_score}</small></button>
-      <button class="bigAct g-viol" ${s.simon_cd>0?"disabled":""} onclick="Games.startSimon()">
+      <button class="bigAct g-viol" ${s.simon_cd>0?"disabled":""} data-action="simon">
         🎵 Ритм<small>${s.simon_cd>0?"отдых "+s.simon_cd+" c":"6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len}</small></button>` },
-    bath(){ return `<button class="bigAct g-mint" onclick="UI.shower()">🚿 Помыть<small>чистота → 100 · +XP</small></button>` },
+    bath(){ return `<button class="bigAct g-mint" data-action="shower">🚿 Помыть<small>чистота → 100 · +XP</small></button>` },
     arena(){ const s = S(); if (!s) return '';
       const full = s.arena_charge >= 100;
       const next = s.league.next;
@@ -138,12 +138,12 @@ window.UI = (() => {
         <div class="chargeTrack ${full?'full':''}"><div style="width:${s.arena_charge}%"></div></div>
         <div class="chargeHint">${full ? "ГОТОВО! Уход даёт +"+s.care_bonus+"% к очкам боя"
           : "Играй в мини-игры (+34%) и ухаживай (+10%), чтобы зарядить"}</div>
-        <button class="bigAct g-red" style="margin-top:12px" ${full?"":"disabled"} onclick="Arena.start()">
+        <button class="bigAct g-red" style="margin-top:12px" ${full?"":"disabled"} data-action="arena">
           ⚔️ НАЙТИ СОПЕРНИКА<small>победа: +20 🏆 · +3 🎟 · +40 XP</small></button>
         <div class="chargeHint" style="margin-top:8px">Побед ${s.wins} · Поражений ${s.losses}</div></div>` },
     bed(){ const s = S(); if (!s) return ''; return s.sleeping
-      ? `<button class="bigAct g-gold" onclick="UI.sleep()">☀️ Разбудить<small>энергия ${s.energy}/100</small></button>`
-      : `<button class="bigAct g-sky" onclick="UI.sleep()">🌙 Уложить спать<small>+1⚡ каждые 36 сек</small></button>` }
+      ? `<button class="bigAct g-gold" data-action="wake">☀️ Разбудить<small>энергия ${s.energy}/100</small></button>`
+      : `<button class="bigAct g-sky" data-action="sleep">🌙 Уложить спать<small>+1⚡ каждые 36 сек</small></button>` }
   };
   function setRoom(r){
     if (GS.room !== r) Bus.emit("room:changed", r);
@@ -321,6 +321,19 @@ window.UI = (() => {
       document.querySelectorAll("#shopTabs .tab").forEach(x=>x.classList.toggle("on", x===b));
       renderShop();
     });
+    /* делегат панели комнаты — вместо inline onclick */
+    $("roomPanel").onclick = e => {
+      const btn = e.target.closest("button[data-action]");
+      if (!btn || btn.disabled) return;
+      const a = btn.dataset.action;
+      if (a === "quests") openSheet("quests");
+      else if (a.startsWith("feed-")) feed(a.slice(5));
+      else if (a === "catch") Games.startCatch();
+      else if (a === "simon") Games.startSimon();
+      else if (a === "shower") shower();
+      else if (a === "arena") Arena.start();
+      else if (a === "sleep" || a === "wake") sleep();
+    };
     $("dailyBtn").onclick = async()=>{
       try {
       const d = await Api.call("daily"); if(!d) return;
@@ -340,13 +353,28 @@ window.UI = (() => {
       GS.set("S", d); render();
       } catch(e){ console.error("[nameBtn]", e) }
     };
-    /* кулдауны Игровой — живое обновление */
+    /* кулдауны Игровой — обновляем текст кнопок, не пересоздавая DOM */
     setInterval(()=>{
       const s = S(); if (!s) return;
       let changed = false;
       if (s.game_cd > 0){ s.game_cd--; changed = true }
       if (s.simon_cd > 0){ s.simon_cd--; changed = true }
-      if (changed && GS.room === "game") $("roomPanel").innerHTML = ROOM_PANELS.game();
+      if (changed && GS.room === "game"){
+        const btns = $("roomPanel").querySelectorAll("button[data-action]");
+        btns.forEach(btn => {
+          const sm = btn.querySelector("small");
+          if (!sm) return;
+          if (btn.dataset.action === "catch"){
+            sm.textContent = s.game_cd > 0
+              ? "отдых "+s.game_cd+" c" : "до 45 🪙 · рекорд "+s.best_score;
+            btn.disabled = s.game_cd > 0;
+          } else if (btn.dataset.action === "simon"){
+            sm.textContent = s.simon_cd > 0
+              ? "отдых "+s.simon_cd+" c" : "6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len;
+            btn.disabled = s.simon_cd > 0;
+          }
+        });
+      }
     }, 1000);
   }
   let orbOpen = false;

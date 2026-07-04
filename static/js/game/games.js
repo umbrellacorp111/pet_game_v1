@@ -11,18 +11,17 @@ window.Games = (() => {
     const ov = $("catchOv");
     ov.classList.add("on"); $("catchEnd").classList.remove("on");
     const c = $("gCanvas"), x = c.getContext("2d");
-    let W, H, _oldW, _oldH;
-    function resizeCanvas(force){
+    let W = 300, H = 400;
+    function resizeCanvas(){
       const w = c.clientWidth, h = c.clientHeight;
       if (w < 1 || h < 1) return false;
-      if (!force && w === _oldW && h === _oldH) return true;
       c.width = w * devicePixelRatio;
       c.height = h * devicePixelRatio;
       x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
-      W = _oldW = w; H = _oldH = h;
+      W = w; H = h;
       return true;
     }
-    if (!resizeCanvas(true)){ W = 300; H = 400 } // fallback
+    resizeCanvas(); // initial setup
     G = {token, score:0, t0:performance.now(), dur:30000, items:[], pops:[],
          over:false, streak:0, lastHit:0, onEnd};
     $("gScore").textContent = "0";
@@ -62,9 +61,8 @@ window.Games = (() => {
     };
     (function loop(){
       if (!G || G.over) return;
+      if (!resizeCanvas()){ requestAnimationFrame(loop); return }
       const el = performance.now()-G.t0;
-      // Пересчитываем размер канваса на случай ресайза
-      resizeCanvas();
       if (el-lastSpawn > Math.max(280, 700-el/60)){ spawn(); lastSpawn = el }
       $("gTimerFill").style.width = Math.max(0, 100-100*el/G.dur)+"%";
       x.clearRect(0,0,W,H);
