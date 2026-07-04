@@ -70,11 +70,14 @@ window.Games = (() => {
   }
 
   async function startCatch(){
+    try {
     const d = await Api.call("game_start"); if(!d) return;
     GS.set("S", d); UI.render();
     runCatch(d.token, endCatch);
+    } catch(e){ console.error("[startCatch]", e) }
   }
   async function endCatch(){
+    try {
     const d = await Api.call("game_finish", {token:G.token, score:G.score});
     if (d){
       $("catchEndText").textContent =
@@ -82,15 +85,19 @@ window.Games = (() => {
       GS.pending = d;
     } else $("catchEndText").textContent = "Очки: "+G.score;
     $("catchEnd").classList.add("on");
+    } catch(e){ console.error("[endCatch]", e) }
   }
   function closeCatch(){
+    try {
     $("catchOv").classList.remove("on");
     finishPending("happy");
+    } catch(e){ console.error("[closeCatch]", e) }
   }
 
   /* ---------- Ритм ---------- */
   const PAD_FREQ = [392, 523, 659, 784];
   async function startSimon(){
+    try {
     const d = await Api.call("simon_start"); if(!d) return;
     GS.set("S", d); UI.render();
     SM = {seq:d.seq, round:1, input:0, lock:true, over:false};
@@ -98,6 +105,7 @@ window.Games = (() => {
     $("simonScore").textContent = "0";
     steps();
     setTimeout(playRound, 700);
+    } catch(e){ console.error("[startSimon]", e) }
   }
   function steps(){
     $("simonSteps").innerHTML = SM.seq.map((_,i)=>
@@ -123,6 +131,7 @@ window.Games = (() => {
     }, 500 + show.length*520 + 150);
   }
   function padTap(i){
+    try {
     if (!SM || SM.lock || SM.over) return;
     flash(i, 200); hap("light");
     if (i === SM.seq[SM.input]){
@@ -137,8 +146,10 @@ window.Games = (() => {
         SM.lock = true;
       }
     } else { Sfx.play("bad"); hap("bad"); finishSimon(SM.round - 1) }
+    } catch(e){ console.error("[padTap]", e) }
   }
   async function finishSimon(reached){
+    try {
     SM.over = true;
     document.querySelectorAll(".pad").forEach(p=>p.disabled = true);
     const d = await Api.call("simon_finish", {reached});
@@ -150,13 +161,17 @@ window.Games = (() => {
       GS.pending = d;
     } else $("simonEndText").textContent = "Повторено шагов: " + reached;
     $("simonEnd").classList.add("on");
+    } catch(e){ console.error("[finishSimon]", e) }
   }
   function closeSimon(){
+    try {
     $("simonOv").classList.remove("on");
     finishPending("happy");
+    } catch(e){ console.error("[closeSimon]", e) }
   }
 
   function finishPending(emo){
+    try {
     if (GS.pending){
       const d = GS.pending; GS.pending = null;
       Sfx.play("win");
@@ -164,6 +179,7 @@ window.Games = (() => {
       Anim.play("jumpJoy", true); Anim.setEmotion(emo, .9, 3);
       UI.afterAction(d);
     } else UI.render();
+    } catch(e){ console.error("[finishPending]", e) }
   }
 
   function bind(){

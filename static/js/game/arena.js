@@ -4,6 +4,7 @@ window.Arena = (() => {
   let BT = null;
 
   async function start(){
+    try {
     const d = await Api.call("battle_start"); if(!d) return;
     GS.set("S", d); UI.render();
     BT = {token: d.token, opp: d.opponent};
@@ -23,9 +24,11 @@ window.Arena = (() => {
     Engine.lights.flash(0xff5e8a, .9, .6);
     Anim.setEmotion("excited", 1, 5);
     $("vsOv").classList.add("show");
+    } catch(e){ console.error("[Arena.start]", e) }
   }
 
   function begin(){
+    try {
     $("vsOv").classList.remove("show");
     const seq = ["3","2","1","БОЙ!"];
     $("countOv").classList.add("show");
@@ -40,9 +43,11 @@ window.Arena = (() => {
       $("countOv").classList.remove("show");
       Games.runCatch(BT.token, end, "⚔️ БОЙ АРЕНЫ");
     }, seq.length*750);
+    } catch(e){ console.error("[Arena.begin]", e) }
   }
 
   async function end(){
+    try {
     $("catchOv").classList.remove("on");
     const G = Games.G;
     const d = await Api.call("battle_finish", {token:G.token, score:G.score});
@@ -67,13 +72,16 @@ window.Arena = (() => {
       Anim.play("defeat", true); Anim.setEmotion("sad", .9, 5);
     }
     $("battleEnd").classList.add("show");
+    } catch(e){ console.error("[Arena.end]", e) }
   }
 
   function close(){
+    try {
     $("battleEnd").classList.remove("show");
     BT = null;
     if (GS.pending){ const d = GS.pending; GS.pending = null; UI.afterAction(d) }
     else UI.render();
+    } catch(e){ console.error("[Arena.close]", e) }
   }
 
   return { start, begin, close };

@@ -118,15 +118,15 @@ window.UI = (() => {
   /* ---------- панели комнат ---------- */
   const ROOM_PANELS = {
     living(){ return `<button class="bigAct g-viol" onclick="UI.openSheet('quests')">📋 Квесты дня<small>3 задания · награды 🪙</small></button>` },
-    kitchen(){ const s = S(); return Object.entries(s.foods).map(([id,f]) =>
+    kitchen(){ const s = S(); if (!s) return ''; return Object.entries(s.foods).map(([id,f]) =>
       `<button class="food" onclick="UI.feed('${id}')"><span class="fe">${f.emoji}</span><b>${f.name}</b><small>${f.price} 🪙</small></button>`).join("") },
-    game(){ const s = S();
+    game(){ const s = S(); if (!s) return '';
       return `<button class="bigAct g-gold" ${s.game_cd>0?"disabled":""} onclick="Games.startCatch()">
         🍔 Лови еду<small>${s.game_cd>0?"отдых "+s.game_cd+" c":"до 45 🪙 · рекорд "+s.best_score}</small></button>
       <button class="bigAct g-viol" ${s.simon_cd>0?"disabled":""} onclick="Games.startSimon()">
         🎵 Ритм<small>${s.simon_cd>0?"отдых "+s.simon_cd+" c":"6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len}</small></button>` },
     bath(){ return `<button class="bigAct g-mint" onclick="UI.shower()">🚿 Помыть<small>чистота → 100 · +XP</small></button>` },
-    arena(){ const s = S();
+    arena(){ const s = S(); if (!s) return '';
       const full = s.arena_charge >= 100;
       const next = s.league.next;
       const prevT = next !== null ? [0,100,250,500,900,1500][s.league.i] : 0;
@@ -141,7 +141,7 @@ window.UI = (() => {
         <button class="bigAct g-red" style="margin-top:12px" ${full?"":"disabled"} onclick="Arena.start()">
           ⚔️ НАЙТИ СОПЕРНИКА<small>победа: +20 🏆 · +3 🎟 · +40 XP</small></button>
         <div class="chargeHint" style="margin-top:8px">Побед ${s.wins} · Поражений ${s.losses}</div></div>` },
-    bed(){ const s = S(); return s.sleeping
+    bed(){ const s = S(); if (!s) return ''; return s.sleeping
       ? `<button class="bigAct g-gold" onclick="UI.sleep()">☀️ Разбудить<small>энергия ${s.energy}/100</small></button>`
       : `<button class="bigAct g-sky" onclick="UI.sleep()">🌙 Уложить спать<small>+1⚡ каждые 36 сек</small></button>` }
   };
@@ -151,7 +151,8 @@ window.UI = (() => {
     Prefs.data.lastRoom = r; Prefs.save();
     document.body.dataset.room = r;
     document.querySelectorAll("nav .t").forEach(t=>t.classList.toggle("on", t.dataset.room===r));
-    $("roomPanel").innerHTML = ROOM_PANELS[r]();
+    try { $("roomPanel").innerHTML = (ROOM_PANELS[r] || (()=>""))(); }
+    catch(e){ console.error("[setRoom]", r, e); $("roomPanel").innerHTML = "" }
   }
 
   /* ---------- рендер ---------- */
@@ -202,7 +203,7 @@ window.UI = (() => {
       + `<p class="listHint">Новые квесты каждый день</p>`;
   }
   function renderShop(){
-    const s = S();
+    const s = S(); if (!s) return;
     const slotName = {hat:"Голова",face:"Лицо",bg:"Мир",fx:"Аура"};
     const row = (id,it,cur,kind) => {
       const owned = s.items.includes(id), eq = Object.values(s.equipped).includes(id);
@@ -223,7 +224,7 @@ window.UI = (() => {
       + (arenaRows ? `<h2 class="font-d shopSep">⚔️ Витрина Арены — за жетоны 🎟</h2>` + arenaRows : "");
   }
   function renderAch(){
-    const s = S();
+    const s = S(); if (!s) return;
     $("aList").innerHTML = Object.entries(s.ach_all).map(([id,a])=>{
       const got = s.ach_got.includes(id);
       return `<div class="card ${got?'':'locked'}"><span class="e">${got?'🏅':'🔒'}</span>
@@ -241,7 +242,7 @@ window.UI = (() => {
 
   /* ---------- действия ---------- */
   function afterAction(d){
-    GS.set("S", d); render();
+    GS.set("S", d); try { render(); } catch(e){ console.error("[afterAction] render", e) }
     if (d.season_reward) notify("🏁","Новый сезон Арены! Жетоны за лигу начислены 🎟");
     if (d.levelup){
       $("lvlNew").textContent = d.level;
@@ -256,36 +257,46 @@ window.UI = (() => {
   }
 
   async function feed(id){
+    try {
     const d = await Api.call("feed",{food:id}); if(!d) return;
     Sfx.play("pop"); hap("medium");
     Anim.play("eat", true); Anim.setEmotion("happy", .9, 3);
     afterAction(d);
+    } catch(e){ console.error("[feed]", e) }
   }
   async function shower(){
+    try {
     const d = await Api.call("shower"); if(!d) return;
     Sfx.play("pop"); hap("medium");
     Anim.play("wash", true); Anim.setEmotion("happy", .8, 3);
     notify("🫧","Блестит чистотой!");
     afterAction(d);
+    } catch(e){ console.error("[shower]", e) }
   }
   async function sleep(){
+    try {
     const d = await Api.call("sleep"); if(!d) return;
     hap("light");
     if (d.woke) notify("☀️","Доброе утро!");
     afterAction(d);
+    } catch(e){ console.error("[sleep]", e) }
   }
   async function claimQ(id){
+    try {
     const d = await Api.call("claim_quest",{id}); if(!d) return;
     Sfx.play("coin"); hap("ok"); notify("📋",`+${d.reward} 🪙 за квест!`);
     GS.set("S", d); render();
+    } catch(e){ console.error("[claimQ]", e) }
   }
   async function shopTap(id, kind){
+    try {
     const s = S();
     const owned = s.items.includes(id);
     const ep = owned ? "equip" : (kind === "arena" ? "arena_buy" : "buy");
     const d = await Api.call(ep, {item:id}); if(!d) return;
     if (!owned){ purchaseFx(id); notify("🛍","Куплено!") } else Sfx.play("pop");
     hap("ok"); GS.set("S", d); render();
+    } catch(e){ console.error("[shopTap]", e) }
   }
 
   /* ---------- листы, орбит-меню, навигация ---------- */
@@ -311,19 +322,23 @@ window.UI = (() => {
       renderShop();
     });
     $("dailyBtn").onclick = async()=>{
+      try {
       const d = await Api.call("daily"); if(!d) return;
       confetti(); Sfx.play("win"); hap("ok");
       Engine.particles.spawn("glow", {x:0,y:1.6,z:.5}, 10, 1);
       Anim.play("jumpJoy", true); Anim.setEmotion("excited", 1, 3);
       notify("🎁",`+${d.bonus} 🪙 · Стрик ${d.streak} 🔥`);
       afterAction(d);
+      } catch(e){ console.error("[dailyBtn]", e) }
     };
     $("nameBtn").onclick = async()=>{
+      try {
       const d = await Api.call("setname",{name:$("nameInput").value.trim()}); if(!d) return;
       $("onb").classList.remove("show");
       confetti(); Sfx.play("fanfare");
       Anim.play("celebrate", true); Anim.setEmotion("excited", 1, 4);
       GS.set("S", d); render();
+      } catch(e){ console.error("[nameBtn]", e) }
     };
     /* кулдауны Игровой — живое обновление */
     setInterval(()=>{
