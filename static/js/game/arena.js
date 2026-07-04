@@ -114,9 +114,12 @@ window.Arena = (() => {
       buffEffects: buffsResult,
       nextHitTime: 0,
       shieldUsed: false,
+      combo: 0,
+      comboTime: 0,
       ended: false,
     };
 
+    $("roomPanel").style.display = "none";
     $("afEnemy").textContent = getEnemyEmoji();
     $("arenaFight").classList.add("show");
     $("arenaFight").style.display = "flex";
@@ -174,7 +177,13 @@ window.Arena = (() => {
     const interval = eff.speedMul * 280;
     fightState.nextHitTime = now + interval;
 
-    let dmg = eff.dmg;
+    // combo
+    if (now - fightState.comboTime < 1500) fightState.combo++;
+    else fightState.combo = 1;
+    fightState.comboTime = now;
+    const comboBonus = Math.floor(fightState.combo / 3);
+
+    let dmg = eff.dmg + comboBonus;
     let crit = false;
     if (Math.random() < eff.critChance){ dmg *= 2; crit = true }
 
@@ -186,6 +195,12 @@ window.Arena = (() => {
 
     fightState.enemyHp -= dmg;
     if (fightState.enemyHp < 0) fightState.enemyHp = 0;
+
+    const comboEl = $("afCombo");
+    if (fightState.combo >= 3){
+      comboEl.textContent = `🔥 ×${fightState.combo}`;
+      comboEl.style.opacity = "1";
+    } else { comboEl.style.opacity = "0" }
 
     const dmgEl = $("afDmg");
     dmgEl.textContent = (crit ? "💥" : "-") + dmg;
@@ -211,6 +226,8 @@ window.Arena = (() => {
   function enemyAttack(){
     if (fightState.ended) return;
     const eff = fightState.buffEffects;
+    fightState.combo = 0;
+    $("afCombo").style.opacity = "0";
     let enDmg = 4 + Math.round(fightState.streak * 1.2);
     if (eff.shieldBlock && !fightState.shieldUsed){
       enDmg = 0;
@@ -241,6 +258,7 @@ window.Arena = (() => {
     fightActive = false;
     $("arenaFight").classList.remove("show");
     $("arenaFight").style.display = "none";
+    $("roomPanel").style.display = "";
     if (window.Music) Music.play(GS.room);
 
     const hasLucky = fightState.buffs.some(b => b.id === "lucky");
@@ -287,6 +305,7 @@ window.Arena = (() => {
     $("battleEnd").classList.remove("show");
     $("arenaFight").classList.remove("show");
     $("arenaFight").style.display = "none";
+    $("roomPanel").style.display = "";
     fightActive = false;
     BT = null;
     if (GS.pending){ const d = GS.pending; GS.pending = null; UI.afterAction(d) }

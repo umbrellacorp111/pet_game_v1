@@ -312,12 +312,23 @@ window.UI = (() => {
     document.querySelectorAll("#orbMenu .orbItem[data-sheet]").forEach(b=>
       b.onclick = ()=>{ hap("light"); Sfx.play("tap"); toggleOrb(false); openSheet(b.dataset.sheet) });
     $("orb").onclick = ()=>{ hap("light"); Sfx.play("tap"); toggleOrb() };
-    $("sndBtn").onclick = ()=>{
-      Prefs.data.sound = !Prefs.data.sound; Prefs.save();
-      $("sndBtn").textContent = Prefs.data.sound ? "🔊" : "🔇";
-      Bus.emit("sound:toggled", Prefs.data.sound);
-      hap("light"); if (Prefs.data.sound) Sfx.play("pop");
+    $("sfxBtn").onclick = ()=>{
+      Prefs.data.sound.sfx = !Prefs.data.sound.sfx; Prefs.save();
+      $("sfxBtn").textContent = Prefs.data.sound.sfx ? "🔊" : "🔇";
+      if (Prefs.data.sound.sfx) Sfx.ambient(GS.room); else Sfx.stopAmbient();
+      hap("light"); if (Prefs.data.sound.sfx) Sfx.play("pop");
     };
+    $("musicBtn").onclick = ()=>{
+      Prefs.data.sound.music = !Prefs.data.sound.music; Prefs.save();
+      $("musicBtn").style.opacity = Prefs.data.sound.music ? "1" : ".35";
+      if (Prefs.data.sound.music){ if (window.Music) Music.play(GS.room) } else { if (window.Music) Music.stop() }
+      hap("light");
+    };
+    function renderSndBtns(){
+      $("sfxBtn").textContent = Prefs.data.sound.sfx ? "🔊" : "🔇";
+      $("musicBtn").style.opacity = Prefs.data.sound.music ? "1" : ".35";
+    }
+    renderSndBtns();
     document.querySelectorAll("nav .t").forEach(t=>t.onclick = ()=>{
       hap("light"); closeSheets(); setRoom(t.dataset.room) });
     document.querySelectorAll("#shopTabs .tab").forEach(b => b.onclick = () => {
@@ -335,6 +346,7 @@ window.UI = (() => {
       }) || null;
     }
     document.addEventListener("pointermove", e => {
+      if (document.querySelector(".overlay.show, .gameOv.on, #arenaFight.show")) return;
       document.querySelectorAll("#roomPanel .ht").forEach(el => el.classList.remove("ht"));
       document.body.style.cursor = "";
       const btn = findRoomBtn(e.clientX, e.clientY);
@@ -342,7 +354,7 @@ window.UI = (() => {
     }, true);
     document.addEventListener("pointerdown", e => {
       if (e.button !== 0) return;
-      if (document.querySelector(".gameOv.on")) return;
+      if (document.querySelector(".gameOv.on, .overlay.show, #arenaFight.show")) return;
       const btn = findRoomBtn(e.clientX, e.clientY);
       if (!btn) return;
       const a = btn.dataset.action;

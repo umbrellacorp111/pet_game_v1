@@ -9,7 +9,7 @@ window.Sfx = (() => {
     return AC;
   }
   function tone(f1, f2, dur=.12, type="sine", vol=.14, delay=0){
-    if (!Prefs.data.sound) return;
+    if (!Prefs.data.sound || !Prefs.data.sound.sfx) return;
     const a = ctx(); if (!a) return;
     const t0 = a.currentTime + delay;
     const o = a.createOscillator(), g = a.createGain();
@@ -50,7 +50,7 @@ window.Sfx = (() => {
   const AMB = { living:[110,.014], kitchen:[130,.012], game:[90,.02],
                 bath:[150,.012], bed:[70,.016], arena:[80,.02] };
   function ambient(room){
-    if (!Prefs.data.sound){ stopAmbient(); return }
+    if (!Prefs.data.sound || !Prefs.data.sound.sfx){ stopAmbient(); return }
     const a = ctx(); if (!a) return;
     const [f, v] = AMB[room] || AMB.living;
     if (!ambOsc){
@@ -66,7 +66,6 @@ window.Sfx = (() => {
   }
 
   Bus.on("room:changed", r => ambient(r));
-  Bus.on("sound:toggled", on => on ? ambient(GS.room) : stopAmbient());
 
   return {
     play(name){ (bank[name]||(()=>{}))() },

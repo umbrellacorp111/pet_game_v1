@@ -25,7 +25,9 @@
   Anim.tickInit();
   const stateP = Api.call("state");
   await prefsP;
-  $("sndBtn").textContent = Prefs.data.sound ? "🔊" : "🔇";
+  $("sfxBtn").textContent = Prefs.data.sound.sfx ? "🔊" : "🔇";
+  $("musicBtn").style.opacity = Prefs.data.sound.music ? "1" : ".35";
+  if (!Prefs.data.sound.music && window.Music) Music.stop();
   GS.gender = Prefs.data.gender || "";
   if (Prefs.data.lastRoom) GS.room = Prefs.data.lastRoom;
 

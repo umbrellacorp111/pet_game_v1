@@ -20,7 +20,7 @@ window.Music = (() => {
   }
 
   function play(room, state){
-    if (!Prefs.data.sound){ stop(); return }
+    if (!Prefs.data.sound || !Prefs.data.sound.music){ stop(); return }
     const id = trackFor(room, state);
     if (current && current.id === id) return; // уже играет
 
@@ -62,15 +62,7 @@ window.Music = (() => {
   }
 
   /* слушаем смену комнаты */
-  Bus.on("room:changed", r => {
-    if (r === "arena") play(r);
-    else play(r);
-  });
-  /* звук вкл/выкл */
-  Bus.on("sound:toggled", on => {
-    if (on) play(GS.room);
-    else stop();
-  });
+  Bus.on("room:changed", r => play(r));
 
   return { play, stop };
 })();
