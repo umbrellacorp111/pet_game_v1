@@ -9,7 +9,7 @@
   --r-common:#93A2C8;--r-rare:#4FC3FF;--r-epic:#A26BFF;--r-leg:#FFC93C;
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none}
-html,body{height:100%;overflow:hidden}
+html,body{height:100%;overflow:hidden;position:relative}
 body{background:var(--bg0);color:var(--ink);font-family:'Manrope',sans-serif}
 .font-d{font-family:'Unbounded'}
 .glass{background:rgba(22,13,48,.8);border:1px solid var(--line);border-radius:26px;
@@ -167,7 +167,7 @@ body[data-mode="play"] .uiLayer{opacity:1}
 @keyframes shimmer{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
 
 /* ---------- панель комнаты ---------- */
-#roomPanel{position:fixed;left:0;right:0;bottom:62px;z-index:9;
+#roomPanel{position:absolute;left:0;right:0;bottom:62px;z-index:9;
   min-height:96px;text-align:center;padding:8px 14px}
 #roomPanel > *{display:inline-block;margin:4px}
 #roomPanel > .food{width:74px}
