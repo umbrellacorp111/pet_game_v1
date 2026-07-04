@@ -117,15 +117,15 @@ window.UI = (() => {
 
   /* ---------- панели комнат ---------- */
   const ROOM_PANELS = {
-    living(){ return `<button class="bigAct g-viol" data-action="quests">📋 Квесты дня<small>3 задания · награды 🪙</small></button>` },
+    living(){ return `<div class="bigAct g-viol" role="button" tabindex="0" data-action="quests">📋 Квесты дня<small>3 задания · награды 🪙</small></div>` },
     kitchen(){ const s = S(); if (!s) return ''; return Object.entries(s.foods).map(([id,f]) =>
-      `<button class="food" data-action="feed-${id}"><span class="fe">${f.emoji}</span><b>${f.name}</b><small>${f.price} 🪙</small></button>`).join("") },
+      `<div class="food" role="button" tabindex="0" data-action="feed-${id}"><span class="fe">${f.emoji}</span><b>${f.name}</b><small>${f.price} 🪙</small></div>`).join("") },
     game(){ const s = S(); if (!s) return '';
-      return `<button class="bigAct g-gold" ${s.game_cd>0?"disabled":""} data-action="catch">
-        🍔 Лови еду<small>${s.game_cd>0?"отдых "+s.game_cd+" c":"до 45 🪙 · рекорд "+s.best_score}</small></button>
-      <button class="bigAct g-viol" ${s.simon_cd>0?"disabled":""} data-action="simon">
-        🎵 Ритм<small>${s.simon_cd>0?"отдых "+s.simon_cd+" c":"6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len}</small></button>` },
-    bath(){ return `<button class="bigAct g-mint" data-action="shower">🚿 Помыть<small>чистота → 100 · +XP</small></button>` },
+      return `<div class="bigAct g-gold ${s.game_cd>0?'dis':''}" role="button" tabindex="0" data-action="catch">
+        🍔 Лови еду<small>${s.game_cd>0?"отдых "+s.game_cd+" c":"до 45 🪙 · рекорд "+s.best_score}</small></div>
+      <div class="bigAct g-viol ${s.simon_cd>0?'dis':''}" role="button" tabindex="0" data-action="simon">
+        🎵 Ритм<small>${s.simon_cd>0?"отдых "+s.simon_cd+" c":"6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len}</small></div>` },
+    bath(){ return `<div class="bigAct g-mint" role="button" tabindex="0" data-action="shower">🚿 Помыть<small>чистота → 100 · +XP</small></div>` },
     arena(){ const s = S(); if (!s) return '';
       const full = s.arena_charge >= 100;
       const next = s.league.next;
@@ -138,12 +138,12 @@ window.UI = (() => {
         <div class="chargeTrack ${full?'full':''}"><div style="width:${s.arena_charge}%"></div></div>
         <div class="chargeHint">${full ? "ГОТОВО! Уход даёт +"+s.care_bonus+"% к очкам боя"
           : "Играй в мини-игры (+34%) и ухаживай (+10%), чтобы зарядить"}</div>
-        <button class="bigAct g-red" style="margin-top:12px" ${full?"":"disabled"} data-action="arena">
-          ⚔️ НАЙТИ СОПЕРНИКА<small>победа: +20 🏆 · +3 🎟 · +40 XP</small></button>
+        <div class="bigAct g-red" style="margin-top:12px" role="button" tabindex="0" data-action="arena">
+          ⚔️ НАЙТИ СОПЕРНИКА<small>победа: +20 🏆 · +3 🎟 · +40 XP</small></div>
         <div class="chargeHint" style="margin-top:8px">Побед ${s.wins} · Поражений ${s.losses}</div></div>` },
     bed(){ const s = S(); if (!s) return ''; return s.sleeping
-      ? `<button class="bigAct g-gold" data-action="wake">☀️ Разбудить<small>энергия ${s.energy}/100</small></button>`
-      : `<button class="bigAct g-sky" data-action="sleep">🌙 Уложить спать<small>+1⚡ каждые 36 сек</small></button>` }
+      ? `<div class="bigAct g-gold" role="button" tabindex="0" data-action="wake">☀️ Разбудить<small>энергия ${s.energy}/100</small></div>`
+      : `<div class="bigAct g-sky" role="button" tabindex="0" data-action="sleep">🌙 Уложить спать<small>+1⚡ каждые 36 сек</small></div>` }
   };
   function setRoom(r){
     if (GS.room !== r) Bus.emit("room:changed", r);
@@ -323,8 +323,8 @@ window.UI = (() => {
     });
     /* делегат панели комнаты — вместо inline onclick */
     $("roomPanel").addEventListener("click", e => {
-      const btn = e.target.closest("button[data-action]");
-      if (!btn || btn.disabled) return;
+      const btn = e.target.closest("[data-action]");
+      if (!btn || btn.classList.contains("dis")) return;
       const a = btn.dataset.action;
       if (a === "quests") openSheet("quests");
       else if (a.startsWith("feed-")) feed(a.slice(5));
@@ -362,18 +362,18 @@ window.UI = (() => {
       if (s.game_cd > 0){ s.game_cd--; changed = true }
       if (s.simon_cd > 0){ s.simon_cd--; changed = true }
       if (changed && GS.room === "game"){
-        const btns = $("roomPanel").querySelectorAll("button[data-action]");
+        const btns = $("roomPanel").querySelectorAll("[data-action]");
         btns.forEach(btn => {
           const sm = btn.querySelector("small");
           if (!sm) return;
           if (btn.dataset.action === "catch"){
             sm.textContent = s.game_cd > 0
               ? "отдых "+s.game_cd+" c" : "до 45 🪙 · рекорд "+s.best_score;
-            btn.disabled = s.game_cd > 0;
+            btn.classList.toggle("dis", s.game_cd > 0);
           } else if (btn.dataset.action === "simon"){
             sm.textContent = s.simon_cd > 0
               ? "отдых "+s.simon_cd+" c" : "6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len;
-            btn.disabled = s.simon_cd > 0;
+            btn.classList.toggle("dis", s.simon_cd > 0);
           }
         });
       }
