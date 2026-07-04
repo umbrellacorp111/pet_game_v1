@@ -53,7 +53,7 @@ window.Engine = (() => {
   };
   const lights = {
     hemi:null, key:null, rim:null,
-    _target:{}, _tint:new THREE.Color(1,1,1), _tintAmt:0,
+    _target:null, _tint:new THREE.Color(1,1,1), _tintAmt:0,
     setRoom(room){
       this._target = ROOM_LIGHT[room] || ROOM_LIGHT.living;
       scene.fog && scene.fog.color.setHex(this._target.fog);
@@ -64,7 +64,7 @@ window.Engine = (() => {
       this._flash = {c:new THREE.Color(hex), s:strength, t:dur, T:dur};
     },
     update(dt){
-      const T = this._target; if (!T) return;
+      const T = this._target; if (!T || !T.hemi) return;
       const lerpC = (light, hex, k=.04) => light.color.lerp(new THREE.Color(hex), k);
       lerpC(this.hemi, T.hemi[0]); this.hemi.groundColor.lerp(new THREE.Color(T.hemi[1]), .04);
       lerpC(this.key, T.key); lerpC(this.rim, T.rim);
