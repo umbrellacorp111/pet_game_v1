@@ -168,28 +168,36 @@ body[data-mode="play"] .uiLayer{opacity:1}
 
 /* ---------- панель комнаты ---------- */
 #roomPanel{position:absolute;left:0;right:0;bottom:62px;z-index:9;
-  min-height:96px;text-align:center;padding:8px 14px;will-change:transform}
+  min-height:96px;text-align:center;padding:8px 14px}
 #roomPanel > *{display:inline-block;margin:4px}
 #roomPanel > .food{width:74px}
 #roomPanel > .arenaCard{width:min(88vw,340px)}
-.bigAct{border:none;border-radius:22px;padding:15px 24px;font-family:'Unbounded';font-weight:700;font-size:14px;outline:none;
-  color:#180D33;cursor:pointer;text-align:center;box-shadow:0 8px 0 rgba(0,0,0,.32);transition:transform .08s,box-shadow .08s;
-  touch-action:manipulation;min-height:52px}
-.bigAct:active{transform:translateY(5px);box-shadow:0 3px 0 rgba(0,0,0,.3)}
-.bigAct small{display:block;font-family:'Manrope';font-weight:800;font-size:10.5px;opacity:.75;margin-top:2px}
-.bigAct.dis, .bigAct[disabled]{filter:grayscale(.7);opacity:.6}
-.g-gold{background:linear-gradient(180deg,#FFE07A,var(--gold))}
-.g-mint{background:linear-gradient(180deg,#8FFFDB,var(--mint))}
-.g-sky{background:linear-gradient(180deg,#9CDBFF,var(--sky))}
-.g-viol{background:linear-gradient(180deg,#BBA5FF,var(--violet));color:#fff}
-.g-red{background:linear-gradient(180deg,#FF8FA9,var(--coral));color:#fff}
-.food{border:1px solid var(--line);border-radius:18px;background:rgba(22,13,48,.75);color:var(--ink);
-  padding:10px 8px;width:74px;text-align:center;cursor:pointer;
-  transition:transform .08s;touch-action:manipulation;min-height:68px}
-.bigAct.ht,.food.ht{outline:3px solid #FFE07A;outline-offset:2px;filter:brightness(1.3)}
-.food:active{transform:scale(.9)} .food.dis{filter:grayscale(.7);opacity:.6;pointer-events:none}
+
+/* iOS-26 жидкое стекло */
+.bigAct{border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:16px 24px;
+  font-family:'Unbounded';font-weight:700;font-size:14px;outline:none;
+  color:#fff;cursor:pointer;text-align:center;
+  background:rgba(255,255,255,.07);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);
+  box-shadow:0 4px 24px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.12);
+  transition:transform .08s;touch-action:manipulation;min-height:52px}
+.bigAct:active{transform:translateY(2px);box-shadow:0 2px 12px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.08)}
+.bigAct small{display:block;font-family:'Manrope';font-weight:800;font-size:10.5px;opacity:.6;margin-top:2px}
+.bigAct.dis, .bigAct[disabled]{opacity:.35}
+.g-gold{border-color:rgba(255,193,60,.35);background:rgba(255,193,60,.08)}
+.g-mint{border-color:rgba(78,240,188,.35);background:rgba(78,240,188,.08)}
+.g-sky{border-color:rgba(79,195,255,.35);background:rgba(79,195,255,.08)}
+.g-viol{border-color:rgba(139,107,255,.35);background:rgba(139,107,255,.08)}
+.g-red{border-color:rgba(255,94,138,.35);background:rgba(255,94,138,.08)}
+
+.food{border:1px solid rgba(255,255,255,.1);border-radius:18px;
+  background:rgba(255,255,255,.05);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  color:#fff;padding:10px 8px;width:74px;text-align:center;cursor:pointer;
+  transition:transform .08s;touch-action:manipulation;min-height:68px;
+  box-shadow:0 4px 16px rgba(0,0,0,.1),inset 0 1px 0 rgba(255,255,255,.08)}
+.bigAct.ht,.food.ht{outline:2px solid rgba(255,224,122,.5);outline-offset:0;filter:brightness(1.25)}
+.food:active{transform:scale(.92)} .food.dis{opacity:.35;pointer-events:none}
 .food .fe{font-size:28px;display:block}
-.food:active .fe{transform:scale(1.25) rotate(-8deg)}
+.food:active .fe{transform:scale(1.15) rotate(-6deg)}
 .food b{display:block;font-size:11px;margin-top:2px}
 .food small{color:var(--gold);font-weight:800;font-size:11px}
 
