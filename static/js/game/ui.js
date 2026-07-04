@@ -131,6 +131,7 @@ window.UI = (() => {
       const next = s.league.next;
       const prevT = next !== null ? [0,100,250,500,900,1500][s.league.i] : 0;
       const lp = next !== null ? Math.min(100, 100*(s.trophies-prevT)/(next-prevT)) : 100;
+      const streak = Prefs.data.arenaStreak || 0;
       return `<div class="arenaCard">
         <div class="leagueBadge">${s.league.emoji} ${s.league.name} · 🏆 ${s.trophies}${next!==null?" / "+next:""}</div>
         ${next!==null?`<div class="leagueNext"><div style="width:${lp}%"></div></div>`:""}
@@ -138,9 +139,11 @@ window.UI = (() => {
         <div class="chargeTrack ${full?'full':''}"><div style="width:${s.arena_charge}%"></div></div>
         <div class="chargeHint">${full ? "ГОТОВО! Уход даёт +"+s.care_bonus+"% к очкам боя"
           : "Играй в мини-игры (+34%) и ухаживай (+10%), чтобы зарядить"}</div>
-        <div class="bigAct g-red" style="margin-top:12px" data-action="arena">
-          ⚔️ НАЙТИ СОПЕРНИКА<small>победа: +20 🏆 · +3 🎟 · +40 XP</small></div>
-        <div class="chargeHint" style="margin-top:8px">Побед ${s.wins} · Поражений ${s.losses}</div></div>` },
+        ${full ? `<div class="bigAct g-red" style="margin-top:12px" data-action="arena">
+          ⚔️ НАЙТИ СОПЕРНИКА<small>🔥 стрик ${streak}</small></div>`
+          : `<div class="bigAct g-red" style="margin-top:10px;opacity:.5;pointer-events:none">
+          🔒 ЗАРЯДИ АРЕНУ<small>нужно 100% заряда</small></div>`}
+        <div class="chargeHint" style="margin-top:6px">Побед ${s.wins} · Поражений ${s.losses} · стрик ${streak}🔥</div></div>` },
     bed(){ const s = S(); if (!s) return ''; return s.sleeping
       ? `<div class="bigAct g-gold" data-action="wake">☀️ Разбудить<small>энергия ${s.energy}/100</small></div>`
       : `<div class="bigAct g-sky" data-action="sleep">🌙 Уложить спать<small>+1⚡ каждые 36 сек</small></div>` }
@@ -350,6 +353,7 @@ window.UI = (() => {
       else if (a === "arena") Arena.start();
       else if (a === "sleep" || a === "wake") sleep();
     }, true);
+
     $("dailyBtn").addEventListener("click", async()=>{
       try {
       const d = await Api.call("daily"); if(!d) return;

@@ -46,6 +46,7 @@
     hero.loadAnim("/static/models/Waving.fbx", "wave");
     hero.loadAnim("/static/models/Laughing.fbx", "laugh");
     hero.loadAnim("/static/models/Happy.fbx", "happy");
+    hero.loadAnim("/static/models/Kick.fbx", "kick");
   }
 
   /* загрузка FBX-модели для female (если доступна) */
@@ -194,7 +195,11 @@
   /* тач-зоны героя (док. 010) */
   addEventListener("pointerdown", e => {
     if (GS.mode !== "play") return;
-    if (e.target.closest(".uiLayer,.sheet,.overlay,.gameOv,#notifStack,#roomPanel")) return;
+    if (e.target.closest(".uiLayer,.sheet,.overlay,.gameOv,#notifStack,#roomPanel")){
+      /* тап по врагу на арене */
+      if (e.target.closest("#arenaFight #afEnemy") && Arena.enemyActive) Arena.onTapEnemy();
+      return;
+    }
     const hit = Engine.raycast(e.clientX, e.clientY, hero.zones);
     if (hit) Anim.touch(hit.object.userData.zone, hit.point);
   });

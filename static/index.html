@@ -157,9 +157,17 @@
     <div class="vsMid font-d">VS</div>
     <div class="vsSide opp"><div class="vsPet" id="vsOppPet">👤</div><b id="vsOpp"></b><small id="vsOppSub"></small></div>
   </div>
-  <p id="vsBonus" style="margin-top:12px"></p>
+  <div class="buffPreview" id="buffPreview"></div>
+  <div class="vsBuffs" id="vsBuffs"></div>
   <button class="btn" onclick="Arena.begin()">⚔️ В БОЙ!</button></div></div>
 <div class="overlay" id="countOv"><div class="countNum font-d" id="countNum">3</div></div>
+<div class="overlay" id="arenaFight" style="display:none">
+  <div class="afTop"><div class="afHp"><div id="afMyHpFill"></div></div><span class="afHpTxt" id="afMyHpTxt">100%</span></div>
+  <div class="afEnemy" id="afEnemy">👹</div>
+  <div class="afEnemyHp"><div id="afEnHpFill"></div></div>
+  <div class="afDmg" id="afDmg"></div>
+  <div class="afMyDmg" id="afMyDmg"></div>
+</div>
 <div class="overlay" id="battleEnd"><div class="modal glass">
   <div class="huge" id="beIcon">⚔️</div><h3 class="font-d" id="beTitle"></h3>
   <p id="beText"></p>

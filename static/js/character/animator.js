@@ -97,6 +97,11 @@ window.Anim = (() => {
     wash:      {dur:1.8, prio:2, spin:true, steps:[
       {at:0,pose:{shL:[0,0,1.2], shR:[0,0,-1.2]}, fx:["bubble",12]},
       {at:1.2,pose:{}}]},
+    kick:      {dur:.55, prio:5, steps:[
+      {at:0,   pose:{thR:[-.65,0,-.1], knR:[1.1,0,0], spine:[.06,0,0], head:[.05,0,0]}, snd:"hit"},
+      {at:.15, pose:{thR:[-.35,0,-.08], knR:[.5,0,0], spine:[.04,0,0], head:[.02,0,0]}},
+      {at:.25, pose:{knR:[1.4,0,0], thR:[-.12,0,-.1], shR:[0,0,-1.2]}},
+      {at:.4,  pose:{}}]},
     celebrate: {dur:2.2, prio:6, jump:true, steps:[
       {at:0,pose:{shL:[0,0,2.7], shR:[0,0,-2.7]}, snd:"vWow", fx:["star",10]},
       {at:.5,pose:{shL:[0,0,2.2], shR:[0,0,-2.7], pelvis:[0,0,.1]}},
