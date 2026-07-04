@@ -77,6 +77,23 @@ body[data-sleeping="1"] #vignette{background:radial-gradient(120% 100% at 50% 45
 #splash.title .spTitle{opacity:1;transform:none}
 .spSub{color:var(--dim);font-size:12px;font-weight:800;min-height:16px}
 
+/* ---------- ГЛАВНОЕ МЕНЮ (после заставки) ---------- */
+#mainMenu{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+  opacity:0;visibility:hidden;transition:opacity .7s,visibility .7s;padding:20px}
+#mainMenu.show{opacity:1;visibility:visible}
+.mmBox{width:min(88vw,320px);display:flex;flex-direction:column;align-items:center;padding:36px 24px 20px;
+  transform:translateY(20px);transition:transform .7s cubic-bezier(.3,1,.5,1)}
+#mainMenu.show .mmBox{transform:none}
+.mmTitle{font-size:30px;font-weight:900;letter-spacing:.28em;padding-left:.28em;
+  background:linear-gradient(90deg,var(--gold),var(--coral),var(--violet));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 4px 20px rgba(140,107,255,.4))}
+.mmSub{color:var(--dim);font-size:13px;font-weight:700;margin-top:4px;margin-bottom:20px}
+.mmVer{color:var(--dim);font-size:10px;font-weight:600;margin-top:16px;opacity:.4}
+.btn.secondary{background:transparent;color:var(--ink);box-shadow:none;border:1px solid var(--line);
+  margin-top:10px;font-size:13px;padding:13px}
+.btn.secondary:active{transform:translateY(3px);background:rgba(255,255,255,.04)}
+
 /* ---------- ВЫБОР ГЕРОЯ ---------- */
 #selUI{position:fixed;inset:0;z-index:20;pointer-events:none;opacity:0;transition:opacity .8s;
   display:flex;flex-direction:column;align-items:center;justify-content:space-between;
@@ -95,7 +112,7 @@ body[data-sleeping="1"] #vignette{background:radial-gradient(120% 100% at 50% 45
 
 /* ---------- режимы: что видно когда ---------- */
 .uiLayer{transition:opacity .6s,transform .6s}
-body[data-mode="boot"] .uiLayer, body[data-mode="select"] .uiLayer{opacity:0;pointer-events:none}
+body[data-mode="boot"] .uiLayer, body[data-mode="select"] .uiLayer, body[data-mode="menu"] .uiLayer{opacity:0;pointer-events:none}
 body[data-mode="play"] .uiLayer{opacity:1}
 
 /* ---------- HUD ---------- */

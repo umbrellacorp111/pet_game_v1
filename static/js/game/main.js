@@ -52,7 +52,30 @@
     return h;
   }
 
-  /* ---------- 2. сцена выбора героя ---------- */
+  /* ---------- 2. главное меню ---------- */
+  splash.classList.add("off");
+  await sleep(400);
+  GS.set("mode", "menu");
+  document.body.dataset.mode = "menu";
+  Engine.cam.setMode("menu");
+  $("mainMenu").classList.add("show");
+  Sfx.play("sparkle");
+
+  const menuChoice = await new Promise(resolve => {
+    $("mmPlay").onclick = () => { Sfx.play("tap"); resolve("play") };
+    $("mmNew").onclick = () => { Sfx.play("tap"); resolve("new") };
+  });
+  $("mainMenu").classList.remove("show");
+
+  if (menuChoice === "new"){
+    const snd = Prefs.data.sound;
+    Prefs.data = { sound: snd };
+    Prefs.save();
+    GS.gender = "";
+    GS.room = "living";
+  }
+
+  /* ---------- 3. сцена выбора героя ---------- */
   async function characterSelect(){
     const hf = spawnHero("f", -1.05, .35);
     const hm = spawnHero("m",  1.05, -.35);
@@ -64,7 +87,6 @@
       GS.set("mode", "select");
       document.body.dataset.mode = "select";
       Engine.cam.setMode("select");
-      splash.classList.add("off");
       $("selUI").classList.add("show");
 
       function select(g){
@@ -110,7 +132,7 @@
         Anim.clearSimple();
 
         let hero = chosen === "f" ? hf : hm;
-        // For female, try to swap procedural → FBX during portal flash
+        // Для female пробуем FBX во время портала
         if (chosen === "f"){
           Engine.scene.remove(hf.group);
           hero = await loadMainHero("f");
@@ -129,12 +151,11 @@
     });
   }
 
-  /* ---------- 3. вход в мир ---------- */
+  /* ---------- 4. вход в мир ---------- */
   let hero;
   if (!GS.gender){
     hero = await characterSelect();
   } else {
-    splash.classList.add("off");
     hero = await loadMainHero(GS.gender);
     hero.group.position.set(0, 0, 0);
     Engine.scene.add(hero.group);
@@ -157,7 +178,7 @@
     if (hit) Anim.touch(hit.object.userData.zone, hit.point);
   });
 
-  /* ---------- 4. состояние сервера ---------- */
+  /* ---------- 5. состояние сервера ---------- */
   const d = await stateP;
   if (d){
     GS.set("S", d);
