@@ -183,7 +183,7 @@ window.Hero = (() => {
         loader.load(url, fbx => {
           // Three.js FBXLoader сам конвертит Z-up → Y-up.
           // Масштаб: ~14 единиц FBX → ~2 единицы сцены.
-          fbx.scale.setScalar(.14);
+          fbx.scale.setScalar(.28);
 
           const mixer = new THREE.AnimationMixer(fbx);
           // Проигрываем первую анимацию на цикле, если есть
