@@ -28,14 +28,16 @@ window.Games = (() => {
     $("combo").classList.remove("show");
     let lastSpawn = 0;
 
-    function spawn(){
+    let lastFrame = performance.now();
+    function spawn(el){
       const bad = Math.random() < .22;
       const [e,v] = bad ? ["💣",-5] : GOOD[Math.random()*GOOD.length|0];
       G.items.push({e, v, x:20+Math.random()*(W-40), y:-30,
-        vy:(1.6+Math.random()*1.6)*(1+(performance.now()-G.t0)/G.dur), r:24});
+        vy:(1.6+Math.random()*1.6)*(1+el/G.dur), r:24});
     }
     c.onpointerdown = ev => {
       if (!G || G.over) return;
+      ev.preventDefault();
       const rect = c.getBoundingClientRect();
       const px = ev.clientX-rect.left, py = ev.clientY-rect.top;
       for (let i=G.items.length-1; i>=0; i--){
@@ -58,17 +60,20 @@ window.Games = (() => {
           G.items.splice(i,1); break;
         }
       }
-    };
+    }
     (function loop(){
       if (!G || G.over) return;
       if (!resizeCanvas()){ requestAnimationFrame(loop); return }
-      const el = performance.now()-G.t0;
-      if (el-lastSpawn > Math.max(280, 700-el/60)){ spawn(); lastSpawn = el }
+      const now = performance.now();
+      const el = now - G.t0;
+      const dt = Math.min((now - lastFrame) / 1000, 0.05);
+      lastFrame = now;
+      if (el-lastSpawn > Math.max(280, 700-el/60)){ spawn(el); lastSpawn = el }
       $("gTimerFill").style.width = Math.max(0, 100-100*el/G.dur)+"%";
       x.clearRect(0,0,W,H);
       x.font = "34px system-ui, 'Segoe UI Emoji', 'Apple Color Emoji', sans-serif";
       x.textAlign = "center"; x.textBaseline = "middle";
-      G.items = G.items.filter(it => { it.y += it.vy*2; x.fillText(it.e, it.x, it.y); return it.y < H+40 });
+      G.items = G.items.filter(it => { it.y += it.vy * 120 * dt; x.fillText(it.e, it.x, it.y); return it.y < H+40 });
       x.font = "800 18px 'Manrope', system-ui";
       G.pops = G.pops.filter(p => { p.t -= .03; p.y -= 1.5;
         x.fillStyle = p.bad ? `rgba(255,94,138,${p.t})` : `rgba(255,201,60,${p.t})`;
