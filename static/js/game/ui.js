@@ -322,8 +322,9 @@ window.UI = (() => {
       document.querySelectorAll("#shopTabs .tab").forEach(x=>x.classList.toggle("on", x===b));
       renderShop();
     });
-    /* перехватываем click на document в capture-фазе — гарантированно до любого другого обработчика */
-    document.addEventListener("click", e => {
+    /* перехватываем pointerdown на document в capture-фазе — срабатывает на любом элементе */
+    document.addEventListener("pointerdown", e => {
+      if (e.button !== 0) return;
       const btn = e.target.closest("[data-action]");
       if (!btn || !$("roomPanel").contains(btn) || btn.classList.contains("dis")) return;
       const a = btn.dataset.action;
