@@ -31,7 +31,7 @@
 
   UI.bind(); Games.bind();
 
-  /* герой-фабрика на сцену */
+  /* герой-фабрика на сцену (процедурный — для выбора и male) */
   function spawnHero(g, x, ry){
     const h = Hero.build(g);
     h.group.position.x = x;
@@ -40,20 +40,32 @@
     return h;
   }
 
+  /* загрузка FBX-модели для female (если доступна) */
+  async function loadMainHero(gender){
+    if (gender === "f" && typeof THREE.FBXLoader !== "undefined"){
+      try {
+        const h = await Hero.loadFBX("/static/models/female.fbx");
+        if (h) return h;
+      } catch(e){ console.warn("[FBX] fallback to procedural", e) }
+    }
+    const h = Hero.build(gender);
+    return h;
+  }
+
   /* ---------- 2. сцена выбора героя ---------- */
   async function characterSelect(){
+    const hf = spawnHero("f", -1.05, .35);
+    const hm = spawnHero("m",  1.05, -.35);
+    Anim.simpleLife(hf, 0); Anim.simpleLife(hm, 2.1);
+    Engine.particles.spawn("glow", {x:0,y:1.3,z:0}, 8, 2.2);
+    let chosen = "";
+
     return new Promise(resolve => {
       GS.set("mode", "select");
       document.body.dataset.mode = "select";
       Engine.cam.setMode("select");
       splash.classList.add("off");
       $("selUI").classList.add("show");
-
-      const hf = spawnHero("f", -1.05, .35);
-      const hm = spawnHero("m",  1.05, -.35);
-      Anim.simpleLife(hf, 0); Anim.simpleLife(hm, 2.1);
-      Engine.particles.spawn("glow", {x:0,y:1.3,z:0}, 8, 2.2);
-      let chosen = "";
 
       function select(g){
         chosen = g;
@@ -87,19 +99,29 @@
         removeEventListener("pointerdown", onTap);
         Prefs.data.gender = chosen; Prefs.save();
         GS.gender = chosen;
-        /* портальный переход */
         Sfx.play("fanfare"); hap("ok");
         Engine.lights.flash(0x8b6bff, 1.6, 1);
         Engine.particles.spawn("glow", {x:0,y:1.4,z:.4}, 18, 1.6);
         $("flash").classList.add("portal");
         $("selUI").classList.remove("show");
         await sleep(650);
-        const hero = chosen === "f" ? hf : hm, other = chosen === "f" ? hm : hf;
+        const other = chosen === "f" ? hm : hf;
         Engine.scene.remove(other.group);
         Anim.clearSimple();
-        hero.group.position.set(0, 0, 0);
-        hero.group.rotation.y = 0;
-        hero.group.scale.setScalar(1);
+
+        let hero = chosen === "f" ? hf : hm;
+        // For female, try to swap procedural → FBX during portal flash
+        if (chosen === "f"){
+          Engine.scene.remove(hf.group);
+          hero = await loadMainHero("f");
+          hero.group.position.set(0, 0, 0);
+          hero.group.rotation.y = 0;
+          Engine.scene.add(hero.group);
+        } else {
+          hero.group.position.set(0, 0, 0);
+          hero.group.rotation.y = 0;
+          hero.group.scale.setScalar(1);
+        }
         Anim.attach(hero);
         $("flash").classList.remove("portal");
         resolve(hero);
@@ -113,7 +135,9 @@
     hero = await characterSelect();
   } else {
     splash.classList.add("off");
-    hero = spawnHero(GS.gender, 0, 0);
+    hero = await loadMainHero(GS.gender);
+    hero.group.position.set(0, 0, 0);
+    Engine.scene.add(hero.group);
     Anim.attach(hero);
   }
   window.heroMain = hero;

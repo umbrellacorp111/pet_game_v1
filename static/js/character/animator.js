@@ -202,6 +202,12 @@ window.Anim = (() => {
 
   function headPos(){
     if (!H) return {x:0,y:1.9,z:.4};
+    if (H.isFBX){
+      const v = new THREE.Vector3();
+      if (H.bones.head) H.bones.head.getWorldPosition(v);
+      else return {x:0,y:1.4,z:.3};
+      return {x:v.x, y:v.y+.15, z:v.z+.15};
+    }
     const v = new THREE.Vector3();
     H.bones.head.getWorldPosition(v);
     return {x:v.x, y:v.y+.25, z:v.z+.3};
@@ -211,6 +217,8 @@ window.Anim = (() => {
   const faceCtl = {blinkIn:2.5, lids:0, open:0, openT:0, sacc:{x:0,y:0}, saccIn:1};
   function faceTick(dt, t){
     if (!H) return;
+    // FBX-модель не имеет процедурного лица — лицевая анимация отключена
+    if (H.isFBX) return;
     const E = EMO[emoState.cur], I = emoState.intensity;
     const F = H.face;
     /* веки: эмоция + моргание */
@@ -262,18 +270,25 @@ window.Anim = (() => {
   /* ================= ГЛАВНЫЙ ЦИКЛ ================= */
   let jumpT = -1, spinT = -1, auraAcc = 0;
   function tick(dt, t){
-    /* лёгкая жизнь героев сцены выбора */
-    for (const s of simple){
-      const b = s.hero.bones;
-      b.spine.rotation.x = s.hero.rest.spine.x + Math.sin(t*2+s.ph)*.02;
-      b.head.rotation.y = s.hero.rest.head.y + Math.sin(t*.7+s.ph)*.1;
-      b.root.position.y = Math.sin(t*2.2+s.ph)*.02;
-      const lid = (Math.sin(t*1.3+s.ph*3) > .97) ? 1 : 0;
-      s.lid += (lid - s.lid)*dt*14;
-      const lv = .12 + s.lid;
-      s.hero.face.lidL.scale.y = lv; s.hero.face.lidR.scale.y = lv;
-    }
+    /* лёгкая жизнь героев сцены выбора (только procedural) */
     if (!H) return;
+    if (!H.isFBX){
+      for (const s of simple){
+        const b = s.hero.bones;
+        b.spine.rotation.x = s.hero.rest.spine.x + Math.sin(t*2+s.ph)*.02;
+        b.head.rotation.y = s.hero.rest.head.y + Math.sin(t*.7+s.ph)*.1;
+        b.root.position.y = Math.sin(t*2.2+s.ph)*.02;
+        const lid = (Math.sin(t*1.3+s.ph*3) > .97) ? 1 : 0;
+        s.lid += (lid - s.lid)*dt*14;
+        const lv = .12 + s.lid;
+        s.hero.face.lidL.scale.y = lv; s.hero.face.lidR.scale.y = lv;
+      }
+    }
+
+    /* FBX: обновляем AnimationMixer */
+    if (H.isFBX && H.mixer){
+      H.mixer.update(dt);
+    }
 
     /* эмоция: удержание → возврат к базовой */
     if (emoState.hold < 9e8){
@@ -282,7 +297,33 @@ window.Anim = (() => {
         setEmotion(baseline, .6, 9e9);
     }
 
-    /* таймлайн действия */
+    /* FBX: мимика и кастомные позы не работают — только звуки/частицы/свет */
+    if (H.isFBX){
+      // Прыжок
+      if (jumpT >= 0){
+        jumpT += dt*2.2;
+        if (jumpT >= 1) jumpT = -1;
+        else H.bones.root.position.y += Math.sin(jumpT*Math.PI)*.55;
+      }
+      // Аура
+      if (H.fxAura){
+        auraAcc += dt;
+        if (auraAcc > .7){ auraAcc = 0;
+          Engine.particles.spawn(H.fxAura === "fx_thunder" ? "bolt" : "spark",
+            {x:0, y:1.2, z:.3}, 2, .8);
+        }
+      }
+      if (sleepMode){
+        auraAcc += dt;
+        if (auraAcc > 1.6){ auraAcc = 0; Engine.particles.spawn("zzz", headPos(), 1, .2) }
+      }
+      // Событие дня / UI-эффекты всё равно работают
+      faceTick(dt, t);
+      idleTick(dt);
+      return;
+    }
+
+    /* таймлайн действия (procedural) */
     if (action){
       action.t += dt;
       const steps = action.def.steps;
@@ -356,20 +397,21 @@ window.Anim = (() => {
     if (!H) return;
     H.setLevel(S.level);
     if (S.sleeping && !sleepMode){
-      sleepMode = true; play("sleepPose", true);
+      sleepMode = true;
+      if (!H.isFBX) play("sleepPose", true);
       setEmotion("sleepy", 1, 9e9); Sfx.play("sleep");
     } else if (!S.sleeping && sleepMode){
-      sleepMode = false; afkStage = 0; stopHold();
-      play("wake", true); setEmotion("happy", .8, 3);
+      sleepMode = false; afkStage = 0;
+      if (!H.isFBX){ stopHold(); play("wake", true) }
+      setEmotion("happy", .8, 3);
     }
-    if (!S.sleeping){
+    if (!S.sleeping && (emoState.hold > 9e8 || emoState.cur === emoState.prev)){
       const worst = Math.min(S.hunger, S.fun, S.clean, S.energy);
       baseline = S.energy < 15 ? "tired"
         : S.hunger < 20 ? "sad"
         : S.fun < 25 ? "sad"
         : worst >= 70 ? "happy" : "neutral";
-      if (emoState.hold > 9e8 || emoState.cur === emoState.prev)
-        setEmotion(baseline, .6, 9e9);
+      setEmotion(baseline, .6, 9e9);
     }
   }
 
