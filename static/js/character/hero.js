@@ -186,13 +186,26 @@ window.Hero = (() => {
           fbx.scale.setScalar(1.25);
 
           const mixer = new THREE.AnimationMixer(fbx);
-          // Проигрываем первую анимацию на цикле, если есть
-          const actions = [];
-          (fbx.animations || []).forEach(clip => {
-            const a = mixer.clipAction(clip);
-            a.play();
-            actions.push(a);
-          });
+          const _clips = {}, _actions = {};
+          let _currentAction = null;
+          // Первая анимация — idle
+          if (fbx.animations && fbx.animations[0]){
+            _clips.idle = fbx.animations[0];
+            _currentAction = mixer.clipAction(_clips.idle);
+            _currentAction.play();
+          }
+          function playAnim(name, fadeIn = 0.3){
+            if (!_clips[name]) return false;
+            const next = _actions[name] || (_actions[name] = mixer.clipAction(_clips[name]));
+            if (_currentAction && _currentAction !== next){
+              _currentAction.fadeOut(fadeIn);
+              next.reset().fadeIn(fadeIn).play();
+            } else if (!_currentAction){
+              next.play();
+            }
+            _currentAction = next;
+            return true;
+          }
 
           // Собираем кости, создаём fallback-группы для нужных имён
           const bones = {root: new THREE.Group()};
@@ -232,8 +245,8 @@ window.Hero = (() => {
 
           const hero = {
             group: fbx, bones, face: {}, zones, rest, gender: "f",
-            isFBX: true, mixer, _animActions: actions,
-            fxAura: "", _equipSprites: [],
+            isFBX: true, mixer, _clips, _actions,
+            playAnim, fxAura: "", _equipSprites: [],
             setLevel(){},
             setEquip(equipped, defOf){
               this._equipSprites.forEach(s => s.parent && s.parent.remove(s));
@@ -249,6 +262,20 @@ window.Hero = (() => {
               if (equipped.face && bones.faceSlot) put(bones.faceSlot, equipped.face, .45);
               this.fxAura = equipped.fx || "";
             },
+          };
+          // Добавляем метод загрузки дополнительных анимаций
+          hero.loadAnim = async function(url, name){
+            return new Promise((resolve, reject) => {
+              try {
+                const l = new THREE.FBXLoader();
+                l.load(url, r => {
+                  if (r.animations && r.animations[0]){
+                    hero._clips[name] = r.animations[0];
+                    resolve();
+                  } else reject(new Error("no anim in " + url));
+                }, undefined, e => reject(e));
+              } catch(e){ reject(e) }
+            });
           };
           resolve(hero);
         },

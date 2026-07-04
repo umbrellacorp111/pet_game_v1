@@ -173,6 +173,15 @@ window.Anim = (() => {
     armR: ["wave","pushAway","pushAway","escape"],
     legs: ["stepBack","stepBack","pushAway","escape"],
   };
+  // Имена FBX-анимаций для зон (можно переопределить через H.setFBXAnimMap)
+  const FBX_ANIM_MAP = {
+    head: ["headPat","laugh","headPat","escape"],
+    face: ["laugh","laugh","headPat","escape"],
+    body: ["laugh","laugh","pushAway","escape"],
+    armL: ["wave","wave","pushAway","escape"],
+    armR: ["wave","wave","pushAway","escape"],
+    legs: ["happy","stepBack","pushAway","escape"],
+  };
   function touch(zoneName, hitPoint){
     if (!H) return;
     if (sleepMode){ Bus.emit("hero:sleep_touch"); return }
@@ -182,16 +191,22 @@ window.Anim = (() => {
     rec.t = performance.now();
     const stage = Math.min(3, rec.n++);
     const emoNow = emoState.cur;
-    let reaction = ZONE_REACT[zoneName][stage];
-    if (emoNow === "sad" && stage < 2) reaction = "tiltHead";
-    if (emoNow === "embarrassed") reaction = stage < 2 ? "escape" : "pushAway";
-    play(reaction, true);
+    if (H.isFBX){
+      const fbxMap = H._fbxAnimMap || FBX_ANIM_MAP;
+      const animName = fbxMap[zoneName] ? fbxMap[zoneName][stage] : "idle";
+      if (!H.playAnim(animName)) H.playAnim("idle");
+    } else {
+      let reaction = ZONE_REACT[zoneName][stage];
+      if (emoNow === "sad" && stage < 2) reaction = "tiltHead";
+      if (emoNow === "embarrassed") reaction = stage < 2 ? "escape" : "pushAway";
+      play(reaction, true);
+    }
     /* эмоция от касания */
     if (stage === 0) setEmotion(zoneName==="face" ? "embarrassed" : "happy", .8, 3);
     else if (stage === 2) setEmotion("surprised", .7, 2);
     else if (stage === 3) setEmotion("excited", .9, 2.5);
     /* цепная реакция: голова → смех → отталкивание */
-    if (zoneName === "head" && stage === 1)
+    if (zoneName === "head" && stage === 1 && !H.isFBX)
       setTimeout(()=>{ if (!sleepMode) play("pushAway") }, 1200);
     const pos = hitPoint || headPos();
     Engine.particles.spawn(stage >= 2 ? "spark" : "heart", pos, 4+stage*2, .35);

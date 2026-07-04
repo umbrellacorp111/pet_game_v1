@@ -40,12 +40,20 @@
     return h;
   }
 
+  /* загрузка дополнительных FBX-анимаций */
+  function loadFBXAnims(hero){
+    if (!hero.isFBX) return;
+    hero.loadAnim("/static/models/Waving.fbx", "wave");
+    hero.loadAnim("/static/models/Laughing.fbx", "laugh");
+    hero.loadAnim("/static/models/Happy.fbx", "happy");
+  }
+
   /* загрузка FBX-модели для female (если доступна) */
   async function loadMainHero(gender){
     if (gender === "f" && typeof THREE.FBXLoader !== "undefined"){
       try {
         const h = await Hero.loadFBX("/static/models/female.fbx");
-        if (h) return h;
+        if (h) { loadFBXAnims(h); return h; }
       } catch(e){ console.warn("[FBX] fallback to procedural", e) }
     }
     const h = Hero.build(gender);
@@ -82,6 +90,7 @@
     if (typeof THREE.FBXLoader !== "undefined"){
       try {
         hfFBX = await Hero.loadFBX("/static/models/female.fbx");
+        loadFBXAnims(hfFBX);
         hfFBX.group.position.set(-1.05, 0, .35);
         hfFBX.group.rotation.y = .35;
         Engine.scene.add(hfFBX.group);
@@ -105,7 +114,8 @@
         const hero = g === "f" ? hf : hm, other = g === "f" ? hm : hf;
         Anim.clearSimple(); Anim.simpleLife(other, 1.3);
         Anim.attach(hero);
-        if (!hero.isFBX) Anim.play("wave", true);
+        if (hero.isFBX) hero.playAnim("wave");
+        else Anim.play("wave", true);
         Anim.setEmotion("happy", 1, 4);
         hero.group.scale.setScalar(1.07); other.group.scale.setScalar(.94);
         hero.group.position.z = .35; other.group.position.z = -.25;
