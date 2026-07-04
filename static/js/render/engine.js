@@ -42,6 +42,24 @@ window.Engine = (() => {
     }
   };
 
+  /* ---- фон: фото комнат ---- */
+  const BG_MAP = {
+    living:"dom.png", kitchen:"kitchen.png", game:"kiber.png",
+    bed:"bedroom.png", arena:"arena.png",
+  };
+  const bgLoader = new THREE.TextureLoader();
+  const bgCache = {};
+  function setBg(room){
+    const file = BG_MAP[room];
+    if (!file){ scene.background = new THREE.Color(ROOM_LIGHT[room]?.fog || 0x060318); return }
+    if (bgCache[room]){ scene.background = bgCache[room]; return }
+    bgLoader.load("/static/photos/"+file, tex => {
+      tex.encoding = THREE.sRGBEncoding;
+      bgCache[room] = tex;
+      if (GS.room === room) scene.background = tex;
+    });
+  }
+
   /* ---- свет: комнаты + эмоции + вспышки событий ---- */
   const ROOM_LIGHT = {
     living:  {hemi:[0xcdb9ff,0x2a1b52], key:0xffffff, rim:0x8b6bff, fog:0x1a0f35, floor:0x2a1b52},
@@ -58,6 +76,7 @@ window.Engine = (() => {
       this._target = ROOM_LIGHT[room] || ROOM_LIGHT.living;
       scene.fog && scene.fog.color.setHex(this._target.fog);
       ground && ground.material.color.setHex(this._target.floor);
+      setBg(room);
     },
     tint(hex, amt){ this._tint.setHex(hex); this._tintAmt = amt }, // эмо-подсветка
     flash(hex=0xffc93c, strength=1.4, dur=.8){
