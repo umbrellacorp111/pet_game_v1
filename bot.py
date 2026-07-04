@@ -293,10 +293,18 @@ def public_state(p, extra=None):
     return st
 
 # ---------- АВТОРИЗАЦИЯ ----------
+# initData старше 1 суток отклоняем: защита от replay-атак перехваченным
+# initData (HMAC валиден бессрочно, а user_id в нём постоянный — без этого
+# лимита перехваченный 30 дней назад чек остаётся годным для трофеев).
+_INITDATA_MAX_AGE = 86400
+
 def check_init_data(init_data):
     try:
         data = dict(parse_qsl(init_data, keep_blank_values=True))
         given = data.pop("hash", "")
+        auth_date = int(data.get("auth_date", "0"))
+        if not auth_date or time.time() - auth_date > _INITDATA_MAX_AGE:
+            return None
         cs = "\n".join(f"{k}={v}" for k, v in sorted(data.items()))
         secret = hmac.new(b"WebAppData", BOT_TOKEN.encode(), hashlib.sha256).digest()
         calc = hmac.new(secret, cs.encode(), hashlib.sha256).hexdigest()
@@ -479,6 +487,12 @@ async def api_battle_start(request):
         return err(f"Арена заряжена на {p['arena_charge']}% — играй и ухаживай!")
     if p["energy"] < GAME_COST_ENERGY:
         return err("Мало энергии для боя — уложи питомца спать 🌙")
+    # anti-cheat: нельзя стартовать второй бой, пока не завершён предыдущий.
+    # Без этого guard клиентский bug двойного `battle_start` (или curl)
+    # списывал только один фактический бой, а второй заряд списывал
+    # второй раз и блокировал первый токен.
+    if p["battle_token"]:
+        return err("Бой уже идёт — заверши предыдущий")
     opp = find_opponent(p)
     p["battle_token"] = secrets.token_hex(8)
     p["battle_started"] = time.time()
@@ -498,7 +512,17 @@ async def api_battle_finish(request):
         return err("Бой не был начат")
     opp = json.loads(p["battle_opp"] or "{}")
     p["battle_token"] = ""
+    # anti-cheat: cap `score` потолком исходя из last_game_rewards.
+    # Без cap клиент мог слать score=999999 → my_final >> opp_score →
+    # гарантированная победа с +20 🏆 +3 🎟 за бой. Цикл:
+    # мини-игра → battle_start → battle_finish{999999} → ∞ трофеев.
     raw = max(0, int(body.get("score", 0)))
+    score_cap = max(CATCH_MAX_REWARD * 3, p["best_score"] + 20)
+    if raw > score_cap:
+        raw = score_cap
+    elapsed = time.time() - p["battle_started"]
+    if elapsed < 5:
+        return err("Бой слишком короткий — пересражайся")
     my_final = int(raw * care_bonus(p))
     opp_score = int(opp.get("score", 20))
     win = my_final > opp_score

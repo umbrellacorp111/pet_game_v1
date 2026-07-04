@@ -52,8 +52,13 @@ window.Arena = (() => {
     try {
     if (starting || document.querySelector(".gameOv.on, .overlay.show, #arenaFight.show")) return;
     starting = true;
-    const d = await Api.call("battle_start"); if(!d){ starting = false; return }
-    starting = false;
+    const d = await Api.call("battle_start");
+    if (!d){ starting = false; return }
+    /* держим `starting` до показа overlay — иначе race-condition на
+       touch-устройствах: между `await` и `$("vsOv").classList.add("show")`
+       второй клик проходит guard и шлёт второй battle_start, второй BT
+       перетирает первый и первый токен блокируется античитом — бой
+       «не запускается». */
     GS.set("S", d); UI.render();
     BT = {token: d.token, opp: d.opponent, buffs: []};
     const s = GS.S;
@@ -71,12 +76,16 @@ window.Arena = (() => {
     Anim.setEmotion("excited", 1, 5);
     if (document.querySelector("#arenaFight.show, #battleEnd.show, .gameOv.on")){ starting = false; return }
     $("vsOv").classList.add("show");
+    starting = false;
     } catch(e){ starting = false; console.error("[Arena.start]", e) }
   }
 
   function begin(){
     try {
-    if (fightActive || !BT) return;
+    /* guard на уровне модалок: если уже идёт обратный отсчёт или активен
+       бой — двойной клик «В БОЙ!» запускал параллельные таймеры, удвоенный
+       HUD reset в startFight и race enemyAttack-таймеров. */
+    if (fightActive || !BT || document.querySelector("#countOv.show, #arenaFight.show")) return;
     if (!canAffordBuffs()){ UI.toast("Не хватает 🪙 на бафы!", true); return }
     const total = BT.buffs.reduce((sum, bid) => sum + buffCost(bid), 0);
     if (total > 0 && GS.S) GS.S.coins -= total;
@@ -214,9 +223,13 @@ window.Arena = (() => {
     setTimeout(() => { if (dmgEl.textContent === (crit ? "💥" : "-") + dmg) dmgEl.textContent = "" }, 800);
 
     if (window.heroMain){
-      if (window.heroMain.isFBX && window.heroMain.playAnim) window.heroMain.playAnim("kick");
-      else Anim.play("kick", true);
-    }
+      if (window.heroMain.isFBX && window.heroMain.playAnim){
+        /* Kick.fbx грузится fire-and-forget в main.js — если бой начался
+           раньше завершения загрузки клипа, playAnim вернёт false; тогда
+           fallback на процедурную анимацию, чтобы удар был видим. */
+        if (!window.heroMain.playAnim("kick")) Anim.play("kick", true);
+      } else Anim.play("kick", true);
+    } else Anim.play("kick", true);
     Sfx.play("hit"); hap("light");
     Engine.cam.shake(.05);
 
@@ -304,11 +317,17 @@ window.Arena = (() => {
       Anim.play("defeat", true); Anim.setEmotion("sad", .9, 5);
     }
     $("battleEnd").classList.add("show");
-    } catch(e){ console.error("[Arena.finishFight]", e) }
+    } catch(e){ console.error("[Arena.finishFight]", e); fightActive = false }
   }
 
   function close(){
     try {
+    /* полный сброс state-машины: иначе после отмены в vsClose
+       `starting` мог остаться `true` (in-flight start между await и show)
+       → следующий бой deadlock-ит на guard. fightState обнуляется,
+       чтобы не утекли combo/shield из предыдущего боя. */
+    starting = false;
+    fightState = {};
     $("vsOv").classList.remove("show");
     $("battleEnd").classList.remove("show");
     $("arenaFight").classList.remove("show");

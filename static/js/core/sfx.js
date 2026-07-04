@@ -4,9 +4,14 @@ window.Sfx = (() => {
   let AC = null, ambOsc = null, ambGain = null;
 
   function ctx(){
-    if (!AC) try { AC = new (window.AudioContext||window.webkitAudioContext)() } catch(e){}
+    /* guard: Telegram Desktop (CEF) может закрыть AudioContext, если бот
+       свернут; OS мобильного клиента — при suspend долгом. После close все
+       createOscillator/createGain кидают InvalidStateError — весь звук
+       вылетает в консоль. Пересоздаём контекст при close. */
+    if (AC && AC.state === "closed"){ AC = null; ambOsc = null; ambGain = null }
+    if (!AC) try { AC = new (window.AudioContext||window.webkitAudioContext)() } catch(e){ return null }
     if (AC && AC.state === "suspended") AC.resume().catch(()=>{});
-    return AC;
+    return AC && AC.state !== "closed" ? AC : null;
   }
   function tone(f1, f2, dur=.12, type="sine", vol=.14, delay=0){
     if (!Prefs.data.sound || !Prefs.data.sound.sfx) return;
@@ -14,7 +19,7 @@ window.Sfx = (() => {
     const t0 = a.currentTime + delay;
     const o = a.createOscillator(), g = a.createGain();
     o.type = type; o.frequency.setValueAtTime(f1, t0);
-    o.frequency.exponentialRampToValueAtTime(Math.max(1,f2), t0+dur);
+    if (a.state !== "closed") o.frequency.exponentialRampToValueAtTime(Math.max(1,f2), t0+dur);
     g.gain.setValueAtTime(vol, t0);
     g.gain.exponentialRampToValueAtTime(.001, t0+dur);
     o.connect(g).connect(a.destination); o.start(t0); o.stop(t0+dur);
@@ -58,11 +63,13 @@ window.Sfx = (() => {
       ambOsc.type = "sine"; ambGain.gain.value = 0;
       ambOsc.connect(ambGain).connect(a.destination); ambOsc.start();
     }
+    if (a.state === "closed") return;
     ambOsc.frequency.linearRampToValueAtTime(f, a.currentTime+1.2);
     ambGain.gain.linearRampToValueAtTime(v, a.currentTime+1.2);
   }
   function stopAmbient(){
-    if (ambGain && AC) ambGain.gain.linearRampToValueAtTime(0, AC.currentTime+.5);
+    if (ambGain && AC && AC.state !== "closed")
+      ambGain.gain.linearRampToValueAtTime(0, AC.currentTime+.5);
   }
 
   Bus.on("room:changed", r => ambient(r));

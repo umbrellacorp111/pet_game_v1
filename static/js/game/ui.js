@@ -38,11 +38,15 @@ window.UI = (() => {
   }
   function bump(id){ const el = $(id); el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump") }
   function animCoins(v){
+    /* guard: каждый render()/afterAction создавал новую RAF-цепочку,
+       старая не отменялась → две параллельные RAF-петли конкурировали за
+       $("coins").textContent, пилюля монет мигала/дёргалась. */
+    if (typeof animCoins._raf === "number") cancelAnimationFrame(animCoins._raf);
     const step = () => { const d = v-shownCoins;
-      if (Math.abs(d) < 1){ shownCoins = v; $("coins").textContent = v; return }
+      if (Math.abs(d) < 1){ shownCoins = v; $("coins").textContent = v; animCoins._raf = null; return }
       shownCoins += d*.2; $("coins").textContent = Math.round(shownCoins);
-      requestAnimationFrame(step) };
-    step();
+      animCoins._raf = requestAnimationFrame(step) };
+    animCoins._raf = requestAnimationFrame(step);
   }
 
   /* эмоция героя → свечение интерфейса */
@@ -197,6 +201,10 @@ window.UI = (() => {
 
   function renderQuests(){
     const s = S();
+    /* guard: renderQuests вызывается из render() каждый тик; обрезанный
+       ответ сервера без quests или кратковременный `GS.S === null` падал
+       бы на `s.quests.map` → весь HUD умирает. */
+    if (!s || !Array.isArray(s.quests)) return;
     $("qList").innerHTML = s.quests.map(q=>`
       <div class="card ${q.done?'done':''}"><span class="e">${q.done?'✅':'📌'}</span>
         <div class="body"><b>${q.text}</b>
@@ -354,7 +362,11 @@ window.UI = (() => {
     }, true);
     document.addEventListener("pointerdown", e => {
       if (e.button !== 0) return;
-      if (document.querySelector(".gameOv.on, .overlay.show, #arenaFight.show")) return;
+      /* `.sheet.open` тоже блокирует: getBoundingClientRect() видит
+         координаты кнопок roomPanel, даже когда лист перекрывает их
+         визуально через z-index → будущий прозрачный фон листа
+         прорвёт обработчик. */
+      if (document.querySelector(".gameOv.on, .overlay.show, #arenaFight.show, .sheet.open")) return;
       const btn = findRoomBtn(e.clientX, e.clientY);
       if (!btn) return;
       const a = btn.dataset.action;

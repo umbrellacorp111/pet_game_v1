@@ -193,6 +193,14 @@ window.Engine = (() => {
   /* ---- init ---- */
   function init(mount){
     if (typeof THREE === "undefined") throw new Error("Three.js не загружен");
+    /* idempotency: при повторной загрузке (Telegram refresh, devtools
+       rerun, hot-reload) init() без guard создаёт новый scene+renderer,
+       старый rAF-loop продолжает рендерить orphan canvas → утечка CPU/GPU
+       и удвоение нагрузки. */
+    if (renderer){
+      try { renderer.dispose() } catch(e){}
+      if (renderer.domElement && renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement)
+    }
     scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x1a0f35, 8, 20);
     clock = new THREE.Clock();
