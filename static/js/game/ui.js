@@ -342,6 +342,7 @@ window.UI = (() => {
     }, true);
     document.addEventListener("pointerdown", e => {
       if (e.button !== 0) return;
+      if (document.querySelector(".gameOv.on")) return;
       const btn = findRoomBtn(e.clientX, e.clientY);
       if (!btn) return;
       const a = btn.dataset.action;
