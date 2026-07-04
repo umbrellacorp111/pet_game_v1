@@ -396,6 +396,9 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
   color:var(--mint);pointer-events:none;z-index:34;text-shadow:0 0 20px rgba(78,240,188,.6);
   opacity:0;transition:opacity .15s;font-family:'Unbounded'}
 
+.vsClose{position:absolute;top:12px;right:14px;background:none;border:none;color:rgba(255,255,255,.35);
+  font-size:22px;cursor:pointer;padding:4px 8px;line-height:1;transition:color .15s;z-index:2;touch-action:manipulation}
+.vsClose:hover,.vsClose:active{color:var(--coral)}
 /* ---------- бафы в vsOv ---------- */
 .vsBuffs{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:6px}
 .vsBuffs .bf{flex:0 0 56px;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:4px 2px;text-align:center;

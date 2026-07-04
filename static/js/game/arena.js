@@ -1,7 +1,7 @@
 /* game/arena.js — тап-комбат арены.
    battle_start → battle_finish{token,score}. */
 window.Arena = (() => {
-  let BT = null, fightActive = false;
+  let BT = null, fightActive = false, starting = false;
 
   const BUFFS = [
     {id:"dmg",    emoji:"🗡️", name:"+Урон", desc:"+8 к урону",           price:3},
@@ -50,7 +50,10 @@ window.Arena = (() => {
 
   async function start(){
     try {
-    const d = await Api.call("battle_start"); if(!d) return;
+    if (starting || document.querySelector(".gameOv.on, .overlay.show, #arenaFight.show")) return;
+    starting = true;
+    const d = await Api.call("battle_start"); if(!d){ starting = false; return }
+    starting = false;
     GS.set("S", d); UI.render();
     BT = {token: d.token, opp: d.opponent, buffs: []};
     const s = GS.S;
@@ -66,12 +69,14 @@ window.Arena = (() => {
     hap("medium"); Sfx.tone(200,400,.3,"sawtooth",.12);
     Engine.lights.flash(0xff5e8a, .9, .6);
     Anim.setEmotion("excited", 1, 5);
+    if (document.querySelector("#arenaFight.show, #battleEnd.show, .gameOv.on")){ starting = false; return }
     $("vsOv").classList.add("show");
-    } catch(e){ console.error("[Arena.start]", e) }
+    } catch(e){ starting = false; console.error("[Arena.start]", e) }
   }
 
   function begin(){
     try {
+    if (fightActive || !BT) return;
     if (!canAffordBuffs()){ UI.toast("Не хватает 🪙 на бафы!", true); return }
     const total = BT.buffs.reduce((sum, bid) => sum + buffCost(bid), 0);
     if (total > 0 && GS.S) GS.S.coins -= total;
@@ -119,6 +124,7 @@ window.Arena = (() => {
       ended: false,
     };
 
+    $("vsOv").classList.remove("show");
     $("roomPanel").style.display = "none";
     $("afEnemy").textContent = getEnemyEmoji();
     $("arenaFight").classList.add("show");
@@ -256,6 +262,7 @@ window.Arena = (() => {
   async function finishFight(win){
     try {
     fightActive = false;
+    $("vsOv").classList.remove("show");
     $("arenaFight").classList.remove("show");
     $("arenaFight").style.display = "none";
     $("roomPanel").style.display = "";
@@ -302,9 +309,11 @@ window.Arena = (() => {
 
   function close(){
     try {
+    $("vsOv").classList.remove("show");
     $("battleEnd").classList.remove("show");
     $("arenaFight").classList.remove("show");
     $("arenaFight").style.display = "none";
+    $("countOv").classList.remove("show");
     $("roomPanel").style.display = "";
     fightActive = false;
     BT = null;
