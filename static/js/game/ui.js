@@ -155,7 +155,7 @@ window.UI = (() => {
     catch(e){ console.error("[setRoom]", r, e); $("roomPanel").innerHTML = "" }
     /* навешиваем click напрямую на каждый элемент с data-action */
     $("roomPanel").querySelectorAll("[data-action]").forEach(el => {
-      el.onclick = e => {
+      el.addEventListener("click", e => {
         if (el.classList.contains("dis")) return;
         const a = el.dataset.action;
         if (a === "quests") openSheet("quests");
@@ -165,7 +165,7 @@ window.UI = (() => {
         else if (a === "shower") shower();
         else if (a === "arena") Arena.start();
         else if (a === "sleep" || a === "wake") sleep();
-      };
+      });
     });
   }
 
@@ -336,7 +336,7 @@ window.UI = (() => {
       renderShop();
     });
     /* делегат панели комнаты — click навешиваем напрямую в setRoom */
-    $("dailyBtn").onclick = async()=>{
+    $("dailyBtn").addEventListener("click", async()=>{
       try {
       const d = await Api.call("daily"); if(!d) return;
       confetti(); Sfx.play("win"); hap("ok");
@@ -345,7 +345,7 @@ window.UI = (() => {
       notify("🎁",`+${d.bonus} 🪙 · Стрик ${d.streak} 🔥`);
       afterAction(d);
       } catch(e){ console.error("[dailyBtn]", e) }
-    };
+    });
     $("nameBtn").onclick = async()=>{
       try {
       const d = await Api.call("setname",{name:$("nameInput").value.trim()}); if(!d) return;
