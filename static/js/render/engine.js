@@ -45,7 +45,7 @@ window.Engine = (() => {
   /* ---- фон: фото комнат ---- */
   const BG_MAP = {
     living:"dom.png", kitchen:"kitchen.png", game:"kiber.png",
-    bed:"bedroom.png", arena:"arena.png",
+    bath:"bedroom.png", arena:"arena.png",
   };
   const bgLoader = new THREE.TextureLoader();
   const bgCache = {};
@@ -212,12 +212,12 @@ window.Engine = (() => {
     lights.rim.position.set(-3, 2.4, -3);
     scene.add(lights.hemi, lights.key, lights.rim);
 
-    ground = new THREE.Mesh(new THREE.CircleGeometry(6.5, 48),
-      new THREE.MeshStandardMaterial({color:0x2a1b52, roughness:.9, metalness:0}));
+    ground = new THREE.Mesh(new THREE.CircleGeometry(1.7, 32),
+      new THREE.MeshStandardMaterial({color:0x2a1b52, roughness:.9, metalness:0, transparent:true, opacity:.25}));
     ground.rotation.x = -Math.PI/2; ground.receiveShadow = true;
     scene.add(ground);
-    const shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(24,24),
-      new THREE.ShadowMaterial({opacity:.35}));
+    const shadowCatcher = new THREE.Mesh(new THREE.PlaneGeometry(8,8),
+      new THREE.ShadowMaterial({opacity:.15}));
     shadowCatcher.rotation.x = -Math.PI/2; shadowCatcher.position.y = .005;
     shadowCatcher.receiveShadow = true; scene.add(shadowCatcher);
 
