@@ -153,20 +153,7 @@ window.UI = (() => {
     document.querySelectorAll("nav .t").forEach(t=>t.classList.toggle("on", t.dataset.room===r));
     try { $("roomPanel").innerHTML = (ROOM_PANELS[r] || (()=>""))(); }
     catch(e){ console.error("[setRoom]", r, e); $("roomPanel").innerHTML = "" }
-    /* навешиваем click напрямую на каждый элемент с data-action */
-    $("roomPanel").querySelectorAll("[data-action]").forEach(el => {
-      el.addEventListener("click", e => {
-        if (el.classList.contains("dis")) return;
-        const a = el.dataset.action;
-        if (a === "quests") openSheet("quests");
-        else if (a.startsWith("feed-")) feed(a.slice(5));
-        else if (a === "catch") Games.startCatch();
-        else if (a === "simon") Games.startSimon();
-        else if (a === "shower") shower();
-        else if (a === "arena") Arena.start();
-        else if (a === "sleep" || a === "wake") sleep();
-      });
-    });
+    /* click-обработчики навешиваются через capture-делегат в bind() */
   }
 
   /* ---------- рендер ---------- */
@@ -335,7 +322,19 @@ window.UI = (() => {
       document.querySelectorAll("#shopTabs .tab").forEach(x=>x.classList.toggle("on", x===b));
       renderShop();
     });
-    /* делегат панели комнаты — click навешиваем напрямую в setRoom */
+    /* перехватываем click на document в capture-фазе — гарантированно до любого другого обработчика */
+    document.addEventListener("click", e => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn || !$("roomPanel").contains(btn) || btn.classList.contains("dis")) return;
+      const a = btn.dataset.action;
+      if (a === "quests") openSheet("quests");
+      else if (a.startsWith("feed-")) feed(a.slice(5));
+      else if (a === "catch") Games.startCatch();
+      else if (a === "simon") Games.startSimon();
+      else if (a === "shower") shower();
+      else if (a === "arena") Arena.start();
+      else if (a === "sleep" || a === "wake") sleep();
+    }, true);
     $("dailyBtn").addEventListener("click", async()=>{
       try {
       const d = await Api.call("daily"); if(!d) return;
