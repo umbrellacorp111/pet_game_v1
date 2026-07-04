@@ -270,19 +270,17 @@ window.Anim = (() => {
   /* ================= ГЛАВНЫЙ ЦИКЛ ================= */
   let jumpT = -1, spinT = -1, auraAcc = 0;
   function tick(dt, t){
-    /* лёгкая жизнь героев сцены выбора (только procedural) */
     if (!H) return;
-    if (!H.isFBX){
-      for (const s of simple){
-        const b = s.hero.bones;
-        b.spine.rotation.x = s.hero.rest.spine.x + Math.sin(t*2+s.ph)*.02;
-        b.head.rotation.y = s.hero.rest.head.y + Math.sin(t*.7+s.ph)*.1;
-        b.root.position.y = Math.sin(t*2.2+s.ph)*.02;
-        const lid = (Math.sin(t*1.3+s.ph*3) > .97) ? 1 : 0;
-        s.lid += (lid - s.lid)*dt*14;
-        const lv = .12 + s.lid;
-        s.hero.face.lidL.scale.y = lv; s.hero.face.lidR.scale.y = lv;
-      }
+    /* лёгкая жизнь героев сцены выбора */
+    for (const s of simple){
+      const b = s.hero.bones;
+      b.spine.rotation.x = s.hero.rest.spine.x + Math.sin(t*2+s.ph)*.02;
+      b.head.rotation.y = s.hero.rest.head.y + Math.sin(t*.7+s.ph)*.1;
+      b.root.position.y = Math.sin(t*2.2+s.ph)*.02;
+      const lid = (Math.sin(t*1.3+s.ph*3) > .97) ? 1 : 0;
+      s.lid += (lid - s.lid)*dt*14;
+      const lv = .12 + s.lid;
+      s.hero.face.lidL.scale.y = lv; s.hero.face.lidR.scale.y = lv;
     }
 
     /* FBX: обновляем AnimationMixer */

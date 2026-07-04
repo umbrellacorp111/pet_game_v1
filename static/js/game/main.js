@@ -77,9 +77,20 @@
 
   /* ---------- 3. сцена выбора героя ---------- */
   async function characterSelect(){
-    const hf = spawnHero("f", -1.05, .35);
+    // Загружаем FBX для женского превью
+    let hfFBX = null;
+    if (typeof THREE.FBXLoader !== "undefined"){
+      try {
+        hfFBX = await Hero.loadFBX("/static/models/female.fbx");
+        hfFBX.group.position.set(-1.05, 0, .35);
+        hfFBX.group.rotation.y = .35;
+        Engine.scene.add(hfFBX.group);
+      } catch(e){ /* fallback */ }
+    }
+    const hf = hfFBX || spawnHero("f", -1.05, .35);
     const hm = spawnHero("m",  1.05, -.35);
-    Anim.simpleLife(hf, 0); Anim.simpleLife(hm, 2.1);
+    if (!hfFBX) Anim.simpleLife(hf, 0);
+    Anim.simpleLife(hm, 2.1);
     Engine.particles.spawn("glow", {x:0,y:1.3,z:0}, 8, 2.2);
     let chosen = "";
 
@@ -94,7 +105,7 @@
         const hero = g === "f" ? hf : hm, other = g === "f" ? hm : hf;
         Anim.clearSimple(); Anim.simpleLife(other, 1.3);
         Anim.attach(hero);
-        Anim.play("wave", true);
+        if (!hero.isFBX) Anim.play("wave", true);
         Anim.setEmotion("happy", 1, 4);
         hero.group.scale.setScalar(1.07); other.group.scale.setScalar(.94);
         hero.group.position.z = .35; other.group.position.z = -.25;
@@ -132,8 +143,8 @@
         Anim.clearSimple();
 
         let hero = chosen === "f" ? hf : hm;
-        // Для female пробуем FBX во время портала
-        if (chosen === "f"){
+        // Если female уже FBX-превью — просто переносим в центр
+        if (chosen === "f" && !hfFBX){
           Engine.scene.remove(hf.group);
           hero = await loadMainHero("f");
           hero.group.position.set(0, 0, 0);
