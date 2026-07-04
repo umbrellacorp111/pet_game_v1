@@ -2,86 +2,119 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Питомец Канала</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Питомец Канала — Fable</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Manrope:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/css/main.css">
 </head>
-<body data-room="living">
-<canvas id="confetti"></canvas>
-<div id="nightShade"></div>
+<body data-room="living" data-mode="boot">
 
-<div id="app">
-  <div id="floor"></div>
+<!-- LAYER 0-5: непрерывная 3D-сцена -->
+<div id="gl"></div>
 
-  <div class="hud">
-    <div class="pill">🪙 <span id="coins">0</span></div>
-    <div class="pill">🎟 <span id="tokens">0</span></div>
-    <div class="pill">🔥 <span id="streak">0</span></div>
-    <div class="mini">
-      <div class="mb" data-sheet="quests">📋<span class="dot" id="qDot" style="display:none"></span></div>
-      <div class="mb" data-sheet="shop">🛍</div>
-      <div class="mb" data-sheet="ach">🏅</div>
-      <div class="mb" data-sheet="top">🏆</div>
-    </div>
-  </div>
-  <button id="dailyBtn" style="display:none">🎁 БОНУС</button>
+<!-- пост-обработка (виньетка, эмо-свечение, вспышки) -->
+<div id="vignette"></div>
+<div id="emoGlow"></div>
+<div id="flash"></div>
 
-  <div class="needs">
-    <div class="need n-h" id="nh"><span class="ic">🍔</span><div class="tr"><div></div></div></div>
-    <div class="need n-e" id="ne"><span class="ic">⚡</span><div class="tr"><div></div></div></div>
-    <div class="need n-f" id="nf"><span class="ic">😄</span><div class="tr"><div></div></div></div>
-    <div class="need n-c" id="nc"><span class="ic">🫧</span><div class="tr"><div></div></div></div>
-  </div>
-
-  <div id="scene">
-    <div id="petMount"></div>
-    <div id="petOverlay">
-      <div id="hatE"></div><div id="faceE"></div><div id="fxE"></div>
-      <div id="zzz" style="display:none">
-        <span style="font-size:22px">Z</span>
-        <span style="font-size:16px;animation-delay:.8s">z</span>
-        <span style="font-size:12px;animation-delay:1.6s">z</span></div>
-    </div>
-    <div class="petName font-d" id="pname"></div>
-    <div class="mood" id="mood"></div>
-    <div class="xpline">
-      <label><span>Ур. <span id="lvl">1</span> · <span id="rank"></span></span><span id="xVal"></span></label>
-      <div class="tr"><div id="xbar"></div></div></div>
-  </div>
-
-  <div id="roomPanel"></div>
-
-  <nav>
-    <div class="t on" data-room="living"><span class="i">🛋</span>Дом</div>
-    <div class="t" data-room="kitchen"><span class="i">🍳</span>Кухня</div>
-    <div class="t" data-room="game"><span class="i">🕹</span>Игровая</div>
-    <div class="t" data-room="arena"><span class="i">⚔️</span>Арена<span class="dot" id="aDot" style="display:none"></span></div>
-    <div class="t" data-room="bath"><span class="i">🚿</span>Ванная</div>
-    <div class="t" data-room="bed"><span class="i">🌙</span>Спальня</div>
-  </nav>
+<!-- ЗАСТАВКА: чёрный экран → звёзды → портал -->
+<div id="splash">
+  <div class="spStars"></div>
+  <div class="spPortal"></div>
+  <div class="spTitle font-d" id="spTitle">FABLE</div>
+  <div class="spSub" id="spHint"></div>
 </div>
 
-<div class="sheet" id="quests"><div class="grab"></div><h2 class="font-d">Квесты дня<span onclick="closeSheets()">✕</span></h2><div id="qList"></div></div>
-<div class="sheet" id="shop"><div class="grab"></div><h2 class="font-d">Магазин<span onclick="closeSheets()">✕</span></h2><div id="sList"></div></div>
-<div class="sheet" id="ach"><div class="grab"></div><h2 class="font-d">Награды<span onclick="closeSheets()">✕</span></h2><div id="aList"></div></div>
-<div class="sheet" id="top"><div class="grab"></div><h2 class="font-d">Топ канала<span onclick="closeSheets()">✕</span></h2><div id="tList"></div></div>
+<!-- ВЫБОР ГЕРОЯ: UI-слой поверх 3D-сцены выбора -->
+<div id="selUI">
+  <div class="selTitle font-d">ВЫБЕРИ СВОЕГО ГЕРОЯ</div>
+  <div class="selSub">Коснись героя — он ответит. Выбор сохранится навсегда.</div>
+  <div class="selBar">
+    <div class="selName font-d" id="selName">…</div>
+    <button class="btn" id="selBtn" disabled>Начать путь ✦</button>
+  </div>
+</div>
 
-<!-- ИГРА 1: Лови еду -->
+<!-- HUD -->
+<div id="hudTop" class="uiLayer">
+  <div class="pill st" id="coinPill">🪙 <span id="coins">0</span></div>
+  <div class="pill st tok" id="tokPill">🎟 <span id="tokens">0</span></div>
+  <div class="pill st" id="streakPill">🔥 <span id="streak">0</span></div>
+  <div style="flex:1"></div>
+  <div class="leagueChip" id="leagueChip"></div>
+</div>
+<button id="dailyBtn" class="uiLayer" style="display:none">🎁 БОНУС</button>
+<div id="eventBanner" class="uiLayer" style="display:none"></div>
+
+<div id="needs" class="uiLayer">
+  <div class="need n-h" id="nh"><span class="ic">🍔</span><div class="tr"><div></div></div></div>
+  <div class="need n-e" id="ne"><span class="ic">⚡</span><div class="tr"><div></div></div></div>
+  <div class="need n-f" id="nf"><span class="ic">😄</span><div class="tr"><div></div></div></div>
+  <div class="need n-c" id="nc"><span class="ic">🫧</span><div class="tr"><div></div></div></div>
+</div>
+
+<div id="heroPlate" class="uiLayer">
+  <div class="petName font-d" id="pname"></div>
+  <div class="mood" id="mood"></div>
+  <div class="xpline">
+    <label><span>Ур. <span id="lvl">1</span> · <span id="rank"></span></span><span id="xVal"></span></label>
+    <div class="tr"><div id="xbar"></div></div></div>
+</div>
+
+<div id="roomPanel" class="uiLayer"></div>
+
+<!-- Радиальное орб-меню -->
+<div id="orbWrap" class="uiLayer">
+  <div id="orbMenu">
+    <button class="orbItem" data-sheet="shop">🛍</button>
+    <button class="orbItem" data-sheet="quests">📋<span class="dot" id="qDot" style="display:none"></span></button>
+    <button class="orbItem" data-sheet="ach">🏅</button>
+    <button class="orbItem" data-sheet="top">🏆</button>
+    <button class="orbItem" id="sndBtn">🔊</button>
+  </div>
+  <button id="orb">✦</button>
+</div>
+
+<nav class="uiLayer">
+  <div class="t on" data-room="living"><span class="i">🛋</span>Дом</div>
+  <div class="t" data-room="kitchen"><span class="i">🍳</span>Кухня</div>
+  <div class="t" data-room="game"><span class="i">🕹</span>Кибер</div>
+  <div class="t" data-room="arena"><span class="i">⚔️</span>Арена<span class="dot" id="aDot" style="display:none"></span></div>
+  <div class="t" data-room="bath"><span class="i">🚿</span>Ванная</div>
+  <div class="t" data-room="bed"><span class="i">🌙</span>Спальня</div>
+</nav>
+
+<!-- Листы -->
+<div class="sheet" id="quests"><div class="grab"></div><h2 class="font-d">Квесты дня<span onclick="UI.closeSheets()">✕</span></h2><div id="qList"></div></div>
+<div class="sheet" id="shop"><div class="grab"></div><h2 class="font-d">Витрина<span onclick="UI.closeSheets()">✕</span></h2>
+  <div class="tabs" id="shopTabs">
+    <button class="tab on" data-tab="all">Всё</button>
+    <button class="tab" data-tab="hat">Голова</button>
+    <button class="tab" data-tab="face">Лицо</button>
+    <button class="tab" data-tab="bg">Миры</button>
+    <button class="tab" data-tab="fx">Ауры</button>
+    <button class="tab tArena" data-tab="arena">⚔️ Арена</button>
+  </div>
+  <div id="sList"></div></div>
+<div class="sheet" id="ach"><div class="grab"></div><h2 class="font-d">Награды<span onclick="UI.closeSheets()">✕</span></h2><div id="aList"></div></div>
+<div class="sheet" id="top"><div class="grab"></div><h2 class="font-d">Топ бойцов канала<span onclick="UI.closeSheets()">✕</span></h2><div id="tList"></div></div>
+
+<!-- МИНИ-ИГРА: Лови еду -->
 <div class="gameOv" id="catchOv">
-  <div class="gHud"><span class="font-d" style="font-size:13px">ЛОВИ ЕДУ!</span>
+  <div class="gHud"><span class="font-d" style="font-size:13px" id="catchTitle">ЛОВИ ЕДУ!</span>
     <div class="gTimer"><div id="gTimerFill"></div></div>
     <span class="gScore" id="gScore">0</span></div>
+  <div class="combo font-d" id="combo"></div>
   <canvas id="gCanvas"></canvas>
-  <div class="gEnd" id="catchEnd"><div class="modal">
+  <div class="gEnd" id="catchEnd"><div class="modal glass">
     <div class="huge">🏁</div><h3 class="font-d">Раунд окончен!</h3>
     <p id="catchEndText"></p>
-    <button class="btn" onclick="closeCatch()">Забрать награду</button></div></div>
+    <button class="btn" onclick="Games.closeCatch()">Забрать награду</button></div></div>
 </div>
 
-<!-- ИГРА 2: Ритм -->
+<!-- МИНИ-ИГРА: Ритм -->
 <div class="gameOv" id="simonOv">
   <div class="gHud"><span class="font-d" style="font-size:13px">РИТМ 🎵</span>
     <span style="flex:1"></span>
@@ -89,48 +122,61 @@
   <div id="simonArea">
     <div id="simonMsg">Приготовься…</div>
     <div id="pads">
-      <button class="pad" data-i="0"></button>
-      <button class="pad" data-i="1"></button>
-      <button class="pad" data-i="2"></button>
-      <button class="pad" data-i="3"></button>
+      <button class="pad" data-i="0">🌟</button>
+      <button class="pad" data-i="1">🔥</button>
+      <button class="pad" data-i="2">🍀</button>
+      <button class="pad" data-i="3">💧</button>
     </div>
+    <div class="simonSteps" id="simonSteps"></div>
   </div>
-  <div class="gEnd" id="simonEnd"><div class="modal">
+  <div class="gEnd" id="simonEnd"><div class="modal glass">
     <div class="huge">🎼</div><h3 class="font-d">Раунд окончен!</h3>
     <p id="simonEndText"></p>
-    <button class="btn" onclick="closeSimon()">Забрать награду</button></div></div>
+    <button class="btn" onclick="Games.closeSimon()">Забрать награду</button></div></div>
 </div>
 
-<!-- АРЕНА: VS-экран -->
-<div class="overlay" id="vsOv"><div class="modal">
+<!-- АРЕНА -->
+<div class="overlay" id="vsOv"><div class="modal glass vsModal">
+  <div class="vsFlash"></div>
   <div class="vsRow">
-    <div class="vsSide"><div class="vsPet">🐾</div><b id="vsMe"></b><small id="vsMeSub"></small></div>
+    <div class="vsSide me"><div class="vsPet" id="vsMePet">🦸</div><b id="vsMe"></b><small id="vsMeSub"></small></div>
     <div class="vsMid font-d">VS</div>
-    <div class="vsSide"><div class="vsPet" id="vsOppPet">🐾</div><b id="vsOpp"></b><small id="vsOppSub"></small></div>
+    <div class="vsSide opp"><div class="vsPet" id="vsOppPet">👤</div><b id="vsOpp"></b><small id="vsOppSub"></small></div>
   </div>
   <p id="vsBonus" style="margin-top:12px"></p>
-  <button class="btn" onclick="beginBattleRound()">⚔️ В БОЙ!</button></div></div>
-
-<!-- АРЕНА: результат -->
-<div class="overlay" id="battleEnd"><div class="modal">
+  <button class="btn" onclick="Arena.begin()">⚔️ В БОЙ!</button></div></div>
+<div class="overlay" id="countOv"><div class="countNum font-d" id="countNum">3</div></div>
+<div class="overlay" id="battleEnd"><div class="modal glass">
   <div class="huge" id="beIcon">⚔️</div><h3 class="font-d" id="beTitle"></h3>
   <p id="beText"></p>
-  <button class="btn" onclick="closeBattle()">Продолжить</button></div></div>
+  <div class="beDelta" id="beDelta"></div>
+  <button class="btn" onclick="Arena.close()">Продолжить</button></div></div>
 
-<div class="overlay" id="lvlOverlay"><div class="modal">
+<div class="overlay" id="lvlOverlay"><div class="modal glass">
+  <div class="lvlRays"></div>
   <div class="huge">🎉</div><h3 class="font-d">УРОВЕНЬ <span id="lvlNew"></span>!</h3>
-  <p id="lvlText"></p><button class="btn" onclick="hideOv('lvlOverlay')">Красава!</button></div></div>
+  <p id="lvlText"></p><button class="btn" onclick="UI.hideOv('lvlOverlay')">Красава!</button></div></div>
 
-<div class="overlay" id="onb"><div class="modal onb">
-  <div class="huge">🥚</div><h3 class="font-d" style="font-size:20px">Яйцо вылупилось!</h3>
-  <p>Дай питомцу имя — под ним он попадёт в топ канала</p>
+<div class="overlay" id="onb"><div class="modal glass onb">
+  <div class="huge">✦</div><h3 class="font-d" style="font-size:20px">Герой прибыл!</h3>
+  <p>Дай герою имя — под ним он попадёт в топ канала</p>
   <input id="nameInput" maxlength="16" placeholder="Например: Жмых">
   <button class="btn" id="nameBtn">Погнали! 🚀</button></div></div>
 
+<canvas id="confetti"></canvas>
+<div id="notifStack"></div>
 <div class="toast" id="toast"></div>
 
-<script src="/static/pet3d.js"></script>
-<script src="/static/app.js"></script>
-<script src="/static/games.js"></script>
+<script src="/static/js/core/bus.js"></script>
+<script src="/static/js/core/prefs.js"></script>
+<script src="/static/js/core/sfx.js"></script>
+<script src="/static/js/net/api.js"></script>
+<script src="/static/js/render/engine.js"></script>
+<script src="/static/js/character/hero.js"></script>
+<script src="/static/js/character/animator.js"></script>
+<script src="/static/js/game/ui.js"></script>
+<script src="/static/js/game/games.js"></script>
+<script src="/static/js/game/arena.js"></script>
+<script src="/static/js/game/main.js"></script>
 </body>
 </html>
