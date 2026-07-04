@@ -26,10 +26,16 @@ window.GS = {
 };
 
 /* Телеграм-обвязка */
-window.tg = window.Telegram.WebApp;
-tg.ready(); tg.expand();
-tg.setHeaderColor?.("#07051A"); tg.setBackgroundColor?.("#07051A");
+window.tg = null;
+try {
+  if (window.Telegram && window.Telegram.WebApp) {
+    window.tg = window.Telegram.WebApp;
+    tg.ready(); tg.expand();
+    tg.setHeaderColor?.("#07051A"); tg.setBackgroundColor?.("#07051A");
+  }
+} catch(e){ console.warn("[TG] init error", e) }
 window.hap = t => { try {
+  if (!tg) return;
   t==="ok" ? tg.HapticFeedback.notificationOccurred("success")
   : t==="bad" ? tg.HapticFeedback.notificationOccurred("error")
   : tg.HapticFeedback.impactOccurred(t||"light") } catch(e){} };

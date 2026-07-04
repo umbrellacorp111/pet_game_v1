@@ -173,6 +173,7 @@ window.Engine = (() => {
 
   /* ---- init ---- */
   function init(mount){
+    if (typeof THREE === "undefined") throw new Error("Three.js не загружен");
     scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x1a0f35, 8, 20);
     clock = new THREE.Clock();

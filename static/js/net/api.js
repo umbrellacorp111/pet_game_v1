@@ -1,7 +1,7 @@
 /* net/api.js — мост к bot.py. Контракты сервера НЕ менялись:
    те же эндпоинты и поля, что и раньше. */
 window.Api = (() => {
-  const initData = tg.initData;
+  const initData = (tg && tg.initData) || "";
   async function call(path, extra={}){
     for (let attempt = 0; attempt < 2; attempt++){
       try {

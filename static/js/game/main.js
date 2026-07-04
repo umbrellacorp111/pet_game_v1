@@ -5,6 +5,8 @@
 (async () => {
   const sleep = ms => new Promise(r=>setTimeout(r, ms));
 
+  try {
+
   /* ---------- 0. заставка ---------- */
   document.body.dataset.mode = "boot";
   const splash = $("splash");
@@ -18,6 +20,7 @@
 
   /* ---------- 1. параллельно: префсы + движок + состояние ---------- */
   const prefsP = Prefs.load();
+  if (typeof THREE === "undefined") throw new Error("Three.js не загрузился (проверь интернет/CDN)");
   Engine.init($("gl"));
   Anim.tickInit();
   const stateP = Api.call("state");
@@ -138,5 +141,13 @@
     UI.showDayEvent();
   } else {
     UI.toast("Не удалось загрузиться — потяни вниз, чтобы обновить", true);
+  }
+
+  } catch(e){
+    console.error("[Boot]", e);
+    splash.classList.add("off");
+    document.body.dataset.mode = "play";
+    $("flash").classList.add("portal");
+    UI.toast("Ошибка загрузки: " + e.message + ". Обнови страницу.", true);
   }
 })();
