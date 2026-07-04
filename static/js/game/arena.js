@@ -121,6 +121,7 @@ window.Arena = (() => {
     $("arenaFight").classList.add("show");
     $("arenaFight").style.display = "flex";
     renderFightHUD();
+    if (window.Music) Music.play("arena", "arenaFight");
     fightActive = true;
   }
 
@@ -240,6 +241,7 @@ window.Arena = (() => {
     fightActive = false;
     $("arenaFight").classList.remove("show");
     $("arenaFight").style.display = "none";
+    if (window.Music) Music.play(GS.room);
 
     const hasLucky = fightState.buffs.some(b => b.id === "lucky");
     const luckyMul = (hasLucky && Math.random() < 0.1) ? 2 : 1;
