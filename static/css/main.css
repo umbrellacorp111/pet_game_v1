@@ -168,7 +168,7 @@ body[data-mode="play"] .uiLayer{opacity:1}
 
 /* ---------- панель комнаты ---------- */
 #roomPanel{position:absolute;left:0;right:0;bottom:62px;z-index:9;
-  min-height:96px;text-align:center;padding:8px 14px}
+  min-height:96px;text-align:center;padding:8px 14px;will-change:transform}
 #roomPanel > *{display:inline-block;margin:4px}
 #roomPanel > .food{width:74px}
 #roomPanel > .arenaCard{width:min(88vw,340px)}

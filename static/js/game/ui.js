@@ -322,17 +322,25 @@ window.UI = (() => {
       document.querySelectorAll("#shopTabs .tab").forEach(x=>x.classList.toggle("on", x===b));
       renderShop();
     });
-    /* visual hit-test debug: подсвечиваем кнопку при наведении */
+    /* перехватываем pointermove/pointerdown в capture-фазе.
+       Вместо e.target (сломанный хит-тест из-за композитных слоёв в CEF)
+       используем getBoundingClientRect каждой кнопки вручную. */
+    function findRoomBtn(x,y){
+      const p = $("roomPanel"); if (!p) return null;
+      return Array.from(p.querySelectorAll("[data-action]:not(.dis)")).find(b=>{
+        const r = b.getBoundingClientRect(); return x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
+      }) || null;
+    }
     document.addEventListener("pointermove", e => {
       document.querySelectorAll("#roomPanel .ht").forEach(el => el.classList.remove("ht"));
-      const btn = e.target.closest("[data-action]");
-      if (btn && $("roomPanel").contains(btn) && !btn.classList.contains("dis")) btn.classList.add("ht");
+      document.body.style.cursor = "";
+      const btn = findRoomBtn(e.clientX, e.clientY);
+      if (btn){ btn.classList.add("ht"); document.body.style.cursor = "pointer" }
     }, true);
-    /* перехватываем pointerdown на document в capture-фазе — срабатывает на любом элементе */
     document.addEventListener("pointerdown", e => {
       if (e.button !== 0) return;
-      const btn = e.target.closest("[data-action]");
-      if (!btn || !$("roomPanel").contains(btn) || btn.classList.contains("dis")) return;
+      const btn = findRoomBtn(e.clientX, e.clientY);
+      if (!btn) return;
       const a = btn.dataset.action;
       if (a === "quests") openSheet("quests");
       else if (a.startsWith("feed-")) feed(a.slice(5));
