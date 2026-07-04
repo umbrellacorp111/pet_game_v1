@@ -322,6 +322,12 @@ window.UI = (() => {
       document.querySelectorAll("#shopTabs .tab").forEach(x=>x.classList.toggle("on", x===b));
       renderShop();
     });
+    /* visual hit-test debug: подсвечиваем кнопку при наведении */
+    document.addEventListener("pointermove", e => {
+      document.querySelectorAll("#roomPanel .ht").forEach(el => el.classList.remove("ht"));
+      const btn = e.target.closest("[data-action]");
+      if (btn && $("roomPanel").contains(btn) && !btn.classList.contains("dis")) btn.classList.add("ht");
+    }, true);
     /* перехватываем pointerdown на document в capture-фазе — срабатывает на любом элементе */
     document.addEventListener("pointerdown", e => {
       if (e.button !== 0) return;

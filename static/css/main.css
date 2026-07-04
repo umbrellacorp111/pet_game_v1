@@ -186,6 +186,7 @@ body[data-mode="play"] .uiLayer{opacity:1}
 .food{border:1px solid var(--line);border-radius:18px;background:rgba(22,13,48,.75);color:var(--ink);
   padding:10px 8px;width:74px;text-align:center;cursor:pointer;
   transition:transform .08s;touch-action:manipulation;min-height:68px}
+.bigAct.ht,.food.ht{outline:3px solid #FFE07A;outline-offset:2px;filter:brightness(1.3)}
 .food:active{transform:scale(.9)} .food.dis{filter:grayscale(.7);opacity:.6;pointer-events:none}
 .food .fe{font-size:28px;display:block}
 .food:active .fe{transform:scale(1.25) rotate(-8deg)}
