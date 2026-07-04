@@ -102,6 +102,12 @@ window.Games = (() => {
     finishPending("happy");
     } catch(e){ console.error("[closeCatch]", e) }
   }
+  function exitCatch(){
+    if (G) G.over = true;
+    $("catchOv").classList.remove("on");
+    $("catchEnd").classList.remove("on");
+    finishPending("happy");
+  }
 
   /* ---------- Ритм ---------- */
   const PAD_FREQ = [392, 523, 659, 784];
@@ -178,6 +184,12 @@ window.Games = (() => {
     finishPending("happy");
     } catch(e){ console.error("[closeSimon]", e) }
   }
+  function exitSimon(){
+    if (SM) SM.over = true;
+    $("simonOv").classList.remove("on");
+    $("simonEnd").classList.remove("on");
+    finishPending("happy");
+  }
 
   function finishPending(emo){
     try {
@@ -195,6 +207,6 @@ window.Games = (() => {
     document.querySelectorAll(".pad").forEach(p=>p.onclick = ()=>padTap(+p.dataset.i));
   }
 
-  return { bind, startCatch, closeCatch, startSimon, closeSimon, runCatch,
+  return { bind, startCatch, closeCatch, exitCatch, startSimon, closeSimon, exitSimon, runCatch,
            get G(){ return G } };
 })();
