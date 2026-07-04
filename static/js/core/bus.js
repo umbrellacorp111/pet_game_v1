@@ -6,7 +6,7 @@ window.Bus = (() => {
   const map = {};
   return {
     on(ev, fn){ (map[ev] = map[ev] || []).push(fn); return fn },
-    off(ev, fn){ map[ev] = (map[ev]||[]).filter(f=>f!==fn) },
+    off(ev, fn){ map[ev] = (map[ev]||[]).filter(f=>!fn||f===fn) },
     emit(ev, data){
       (map[ev]||[]).forEach(fn => { try { fn(data) } catch(e){ console.error("[Bus]", ev, e) } });
     }
@@ -18,6 +18,7 @@ window.GS = {
   S: null,            // серверное состояние (bot.py /api/state)
   room: "living",
   gender: "",         // m | f — клиентский выбор героя
+  pending: null,
   mode: "boot",       // boot | select | play
   set(key, val){
     this[key] = val;
@@ -31,7 +32,9 @@ try {
   if (window.Telegram && window.Telegram.WebApp) {
     window.tg = window.Telegram.WebApp;
     tg.ready(); tg.expand();
-    tg.setHeaderColor?.("#07051A"); tg.setBackgroundColor?.("#07051A");
+    /* HOT GARAGE theme: оранжевый header, cream footer */
+    try { tg.setHeaderColor?.("#FF6A1A") } catch(e){}
+    try { tg.setBackgroundColor?.("#F7EFE0") } catch(e){}
   }
 } catch(e){ console.warn("[TG] init error", e) }
 window.hap = t => { try {
