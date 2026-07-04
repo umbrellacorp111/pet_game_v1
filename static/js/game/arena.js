@@ -3,28 +3,23 @@
 window.Arena = (() => {
   let BT = null, fightActive = false;
 
-  /* ——— 10 бафов ——— */
   const BUFFS = [
-    {id:"dmg",    emoji:"🗡️", name:"+Урон",   desc:"+8 к урону",             price:3 },
-    {id:"crit",   emoji:"💥", name:"Крит",    desc:"+15% шанс крита (x2)",   price:4 },
-    {id:"speed",  emoji:"⚡", name:"Скорость",desc:"бьёшь на 40% чаще",      price:5 },
-    {id:"vamp",   emoji:"🩸", name:"Вампир",  desc:"15% урона = ХП",         price:5 },
-    {id:"shield", emoji:"🛡️", name:"Щит",     desc:"первый удар врага 0",    price:3 },
-    {id:"berserk",emoji:"🔥", name:"Берсерк", desc:"+50% урона, но -25% ХП", price:6 },
-    {id:"thorns", emoji:"🌵", name:"Шипы",    desc:"враг получает 4 ответно", price:4 },
-    {id:"lucky",  emoji:"🍀", name:"Удача",   desc:"+10% двойная награда",   price:4 },
-    {id:"fury",   emoji:"⚔️", name:"Ярость",  desc:"урон +2 за каждый баф",  price:5 },
-    {id:"heal",   emoji:"💚", name:"Лечение", desc:"+15 ХП перед боем",     price:2 },
+    {id:"dmg",    emoji:"🗡️", name:"+Урон", desc:"+8 к урону",           price:3},
+    {id:"crit",   emoji:"💥", name:"Крит",  desc:"+15% шанс крита (x2)",  price:4},
+    {id:"speed",  emoji:"⚡", name:"Скорость",desc:"бьёшь на 40% чаще",   price:5},
+    {id:"vamp",   emoji:"🩸", name:"Вампир",desc:"15% урона = ХП",        price:5},
+    {id:"shield", emoji:"🛡️", name:"Щит",   desc:"первый удар врага 0",    price:3},
+    {id:"berserk",emoji:"🔥", name:"Берсерк",desc:"+50% урона, но -25% ХП",price:6},
+    {id:"thorns", emoji:"🌵", name:"Шипы",  desc:"враг получает +4 урона", price:4},
+    {id:"lucky",  emoji:"🍀", name:"Удача", desc:"+10% двойная награда",  price:4},
+    {id:"fury",   emoji:"⚔️", name:"Ярость",desc:"урон +2 за каждый баф", price:5},
+    {id:"heal",   emoji:"💚", name:"Лечение",desc:"+15 ХП перед боем",    price:2},
   ];
 
   function selectedBuffs(){
     return (BT ? BT.buffs : []).map(id => BUFFS.find(b => b.id === id)).filter(Boolean);
   }
-
-  function buffCost(id){
-    const b = BUFFS.find(x => x.id === id);
-    return b ? b.price : 0;
-  }
+  function buffCost(id){ const b = BUFFS.find(x => x.id === id); return b ? b.price : 0 }
 
   function toggleBuff(id){
     if (!BT) return;
@@ -47,37 +42,11 @@ window.Arena = (() => {
     $("buffPreview").textContent = `Бафов: ${BT.buffs.length} / 5 · цена: ${total} 🪙`;
   }
 
-  function canAffordBuffs(){
-    if (!BT) return true;
-    const total = BT.buffs.reduce((sum, bid) => sum + buffCost(bid), 0);
-    return total <= (GS.S ? GS.S.coins : 0);
-  }
-
-  function applyBuffs(baseDmg, hp, myHp){
-    const buffs = selectedBuffs();
-    let dmg = baseDmg;
-    let critChance = 0;
-    let speedMul = 1;
-    let vampPct = 0;
-    let shieldBlock = false;
-    let thornsDmg = 0;
-    let furyBonus = 0;
-
-    for (const b of buffs){
-      if (b.id === "dmg") dmg += 8;
-      if (b.id === "crit") critChance = 0.15;
-      if (b.id === "speed") speedMul = 0.7;
-      if (b.id === "vamp") vampPct = 0.15;
-      if (b.id === "shield") shieldBlock = true;
-      if (b.id === "thorns") thornsDmg = 4;
-      if (b.id === "fury") furyBonus = 2 * buffs.length;
-      if (b.id === "heal") myHp = Math.min(100, myHp + 15);
-      if (b.id === "berserk"){ dmg += Math.round(baseDmg * 0.5); myHp = Math.round(myHp * 0.75) }
-    }
-    dmg += furyBonus;
-
-    return { dmg, critChance, speedMul, vampPct, shieldBlock, thornsDmg, myHp };
-  }
+  /* клик по бафу в vsOv */
+  document.addEventListener("click", e => {
+    const bf = e.target.closest("#vsBuffs .bf:not(.dis)");
+    if (bf && $("vsOv").classList.contains("show")) toggleBuff(bf.dataset.bid);
+  });
 
   async function start(){
     try {
@@ -101,19 +70,9 @@ window.Arena = (() => {
     } catch(e){ console.error("[Arena.start]", e) }
   }
 
-  /* клик по бафу внутри vsOv */
-  document.addEventListener("click", e => {
-    const bf = e.target.closest("#vsBuffs .bf:not(.dis)");
-    if (bf && $("vsOv").classList.contains("show")){
-      e.stopPropagation();
-      toggleBuff(bf.dataset.bid);
-    }
-  });
-
   function begin(){
     try {
     if (!canAffordBuffs()){ UI.toast("Не хватает 🪙 на бафы!", true); return }
-    // списываем монеты за бафы (локально, сервер спишет в battle_finish)
     const total = BT.buffs.reduce((sum, bid) => sum + buffCost(bid), 0);
     if (total > 0 && GS.S) GS.S.coins -= total;
 
@@ -134,16 +93,14 @@ window.Arena = (() => {
     } catch(e){ console.error("[Arena.begin]", e) }
   }
 
-  /* ——— БОЙ ——— */
   let fightState = {};
 
   function startFight(){
     const s = GS.S;
     const streak = Prefs.data.arenaStreak || 0;
-    const baseHp = 30;
-    const enemyMaxHp = Math.round(baseHp * (1 + streak * 0.3));
-
-    const buffsResult = applyBuffs(10, enemyMaxHp, 100);
+    const baseHp = 80;
+    const enemyMaxHp = Math.round(baseHp * (1 + streak * 0.25));
+    const buffsResult = applyBuffs(10, 100);
 
     fightState = {
       enemyHp: enemyMaxHp,
@@ -164,7 +121,6 @@ window.Arena = (() => {
     $("arenaFight").classList.add("show");
     $("arenaFight").style.display = "flex";
     renderFightHUD();
-
     fightActive = true;
   }
 
@@ -185,115 +141,117 @@ window.Arena = (() => {
     return "👾";
   }
 
+  function canAffordBuffs(){
+    if (!BT) return true;
+    const total = BT.buffs.reduce((sum, bid) => sum + buffCost(bid), 0);
+    return total <= (GS.S ? GS.S.coins : 0);
+  }
+
+  function applyBuffs(baseDmg, myHp){
+    const buffs = selectedBuffs();
+    let dmg = baseDmg, critChance = 0, speedMul = 1, vampPct = 0;
+    let shieldBlock = false, thornsDmg = 0, furyBonus = 0;
+    for (const b of buffs){
+      if (b.id === "dmg") dmg += 8;
+      if (b.id === "crit") critChance = 0.15;
+      if (b.id === "speed") speedMul = 0.7;
+      if (b.id === "vamp") vampPct = 0.15;
+      if (b.id === "shield") shieldBlock = true;
+      if (b.id === "thorns") thornsDmg = 4;
+      if (b.id === "fury") furyBonus = 2 * buffs.length;
+      if (b.id === "heal") myHp = Math.min(100, myHp + 15);
+      if (b.id === "berserk"){ dmg += Math.round(baseDmg * 0.5); myHp = Math.round(myHp * 0.75) }
+    }
+    return { dmg: dmg + furyBonus, critChance, speedMul, vampPct, shieldBlock, thornsDmg, myHp };
+  }
+
   function onTapEnemy(){
     if (!fightActive || fightState.ended) return;
     const now = performance.now();
     if (now < fightState.nextHitTime) return;
-
     const eff = fightState.buffEffects;
-    const interval = eff.speedMul * 300;
+    const interval = eff.speedMul * 280;
     fightState.nextHitTime = now + interval;
 
     let dmg = eff.dmg;
     let crit = false;
     if (Math.random() < eff.critChance){ dmg *= 2; crit = true }
 
-    // вампир
     if (eff.vampPct > 0){
       const heal = Math.round(dmg * eff.vampPct);
       fightState.myHp = Math.min(fightState.myMaxHp, fightState.myHp + heal);
     }
-
-    // шипы
     if (eff.thornsDmg > 0) dmg += eff.thornsDmg;
 
     fightState.enemyHp -= dmg;
     if (fightState.enemyHp < 0) fightState.enemyHp = 0;
 
-    // визуал урона
     const dmgEl = $("afDmg");
     dmgEl.textContent = (crit ? "💥" : "-") + dmg;
     dmgEl.style.animation = "none"; void dmgEl.offsetWidth; dmgEl.style.animation = "";
     setTimeout(() => { if (dmgEl.textContent === (crit ? "💥" : "-") + dmg) dmgEl.textContent = "" }, 800);
 
-    // анимация героя
     if (window.heroMain){
-      if (heroMain.isFBX) heroMain.playAnim("kick");
+      if (window.heroMain.isFBX && window.heroMain.playAnim) window.heroMain.playAnim("kick");
       else Anim.play("kick", true);
     }
-
     Sfx.play("hit"); hap("light");
-    Engine.cam.shake(.06);
+    Engine.cam.shake(.05);
 
-    // враг контратакует после задержки
     if (fightState.enemyHp <= 0){
       fightState.ended = true;
-      setTimeout(() => end(true), 400);
+      finishFight(true);
     } else {
-      setTimeout(() => enemyAttack(), 400 + Math.random() * 300);
+      setTimeout(() => enemyAttack(), 500 + Math.random() * 300);
     }
-
     renderFightHUD();
   }
 
   function enemyAttack(){
     if (fightState.ended) return;
     const eff = fightState.buffEffects;
-
-    let enDmg = 5 + Math.round(fightState.streak * 1.5);
+    let enDmg = 4 + Math.round(fightState.streak * 1.2);
     if (eff.shieldBlock && !fightState.shieldUsed){
       enDmg = 0;
       fightState.shieldUsed = true;
-      // показываем щит
       const myDmgEl = $("afMyDmg");
       myDmgEl.textContent = "🛡️ 0";
       myDmgEl.style.animation = "none"; void myDmgEl.offsetWidth; myDmgEl.style.animation = "";
     } else {
       fightState.myHp -= enDmg;
       if (fightState.myHp < 0) fightState.myHp = 0;
-
       const myDmgEl = $("afMyDmg");
       myDmgEl.textContent = "-" + enDmg;
       myDmgEl.style.animation = "none"; void myDmgEl.offsetWidth; myDmgEl.style.animation = "";
     }
-
-    // анимация врага (встряска)
     const enEl = $("afEnemy");
-    enEl.style.transform = "scale(1.2)";
+    enEl.style.transform = "scale(1.15)";
     setTimeout(() => enEl.style.transform = "", 120);
-
     Sfx.play("hit"); hap("light");
-
     if (fightState.myHp <= 0){
       fightState.ended = true;
-      setTimeout(() => end(false), 400);
+      finishFight(false);
     }
-
     renderFightHUD();
   }
 
-  async function end(win){
+  async function finishFight(win){
     try {
     fightActive = false;
     $("arenaFight").classList.remove("show");
     $("arenaFight").style.display = "none";
 
-    // lucky buff: шанс двойной награды
     const hasLucky = fightState.buffs.some(b => b.id === "lucky");
     const luckyMul = (hasLucky && Math.random() < 0.1) ? 2 : 1;
-
-    // формируем score для API
     const dmgDealt = fightState.enemyMaxHp - fightState.enemyHp;
-    const score = Math.round(dmgDealt * 10 * luckyMul);
+    const score = Math.round(dmgDealt * 2 * luckyMul);
 
     const d = await Api.call("battle_finish", {token:fightState.token, score});
     if (!d){ UI.render(); return }
 
-    const result = win ? "win" : "lose";
     GS.pending = d;
 
     if (win){
-      // увеличиваем streak
       Prefs.data.arenaStreak = (Prefs.data.arenaStreak || 0) + 1;
       Prefs.save();
       $("beIcon").textContent = "🏆";
@@ -318,9 +276,8 @@ window.Arena = (() => {
       Sfx.play("bad"); hap("bad");
       Anim.play("defeat", true); Anim.setEmotion("sad", .9, 5);
     }
-
     $("battleEnd").classList.add("show");
-    } catch(e){ console.error("[Arena.end]", e) }
+    } catch(e){ console.error("[Arena.finishFight]", e) }
   }
 
   function close(){
@@ -335,5 +292,6 @@ window.Arena = (() => {
     } catch(e){ console.error("[Arena.close]", e) }
   }
 
-  return { start, begin, close, toggleBuff, onTapEnemy, BUFFS, selectedBuffs, get enemyActive(){ return fightActive } };
+  return { start, begin, close, toggleBuff, onTapEnemy, BUFFS, selectedBuffs,
+           get enemyActive(){ return fightActive } };
 })();

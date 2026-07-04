@@ -368,22 +368,25 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
   text-shadow:0 0 60px rgba(255,201,60,.65);animation:countPop .9s cubic-bezier(.3,1.5,.5,1)}
 @keyframes countPop{from{transform:scale(2.4);opacity:0}30%{transform:scale(1);opacity:1}}
 /* ---------- арена-бой ---------- */
-#arenaFight{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;z-index:31}
+#arenaFight{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;z-index:31;
+  background:transparent;backdrop-filter:none;padding-bottom:min(20vh,100px)}
 #arenaFight.on{opacity:1;pointer-events:auto}
 .afTop{position:fixed;top:calc(14px + env(safe-area-inset-top));left:14px;right:14px;display:flex;align-items:center;gap:10px;z-index:32}
 .afHp{flex:1;height:12px;border-radius:99px;background:rgba(255,255,255,.1);overflow:hidden}
 .afHp>div{height:100%;background:linear-gradient(90deg,var(--mint),var(--gold));border-radius:99px;transition:width .3s}
-.afHpTxt{font-weight:900;font-size:13px;color:var(--ink);min-width:44px;text-align:right}
-.afEnemy{font-size:80px;cursor:pointer;transition:transform .08s;user-select:none;-webkit-tap-highlight-color:transparent;
-  filter:drop-shadow(0 0 30px rgba(255,60,60,.4));animation:afFloat 2.6s ease-in-out infinite}
-.afEnemy:active{transform:scale(.88)}
-@keyframes afFloat{50%{transform:translateY(-12px)}}
-.afEnemyHp{width:min(70vw,240px);height:10px;border-radius:99px;background:rgba(255,60,60,.2);overflow:hidden}
+.afHpTxt{font-weight:900;font-size:13px;color:#fff;min-width:44px;text-align:right;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.afEnemy{position:fixed;right:14%;top:45%;font-size:100px;cursor:pointer;transition:transform .08s;user-select:none;
+  -webkit-tap-highlight-color:transparent;filter:drop-shadow(0 0 30px rgba(255,60,60,.5));animation:afFloat 2.6s ease-in-out infinite;
+  z-index:33;transform-origin:center center}
+.afEnemy:active{transform:scale(.82)!important}
+@keyframes afFloat{50%{transform:translateY(-14px)}}
+.afEnemyHp{width:min(40vw,140px);height:10px;border-radius:99px;background:rgba(255,60,60,.2);overflow:hidden;
+  position:fixed;right:14%;top:calc(45% + 70px);z-index:33}
 .afEnemyHp>div{height:100%;background:linear-gradient(90deg,var(--coral),var(--gold));border-radius:99px;transition:width .25s}
-.afDmg{position:fixed;top:50%;right:18%;font-size:36px;font-weight:900;color:var(--coral);pointer-events:none;
-  text-shadow:0 0 20px rgba(255,60,60,.6);animation:dmgPop .7s forwards}
-.afMyDmg{position:fixed;top:50%;left:18%;font-size:28px;font-weight:900;color:var(--sky);pointer-events:none;
-  text-shadow:0 0 20px rgba(79,195,255,.6);animation:dmgPop .7s forwards}
+.afDmg{position:fixed;top:38%;right:6%;font-size:38px;font-weight:900;color:var(--coral);pointer-events:none;
+  text-shadow:0 0 20px rgba(255,60,60,.8);animation:dmgPop .7s forwards;z-index:34}
+.afMyDmg{position:fixed;top:34%;left:10%;font-size:26px;font-weight:900;color:var(--sky);pointer-events:none;
+  text-shadow:0 0 16px rgba(79,195,255,.7);animation:dmgPop .7s forwards;z-index:34}
 @keyframes dmgPop{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(1.3)}}
 .buffPreview{font-size:12px;color:var(--dim);margin-top:8px;font-weight:700}
 

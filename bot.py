@@ -496,12 +496,9 @@ async def api_battle_finish(request):
     p = await auth(request); body = request["body"]
     if not p["battle_token"] or body.get("token") != p["battle_token"]:
         return err("Бой не был начат")
-    elapsed = time.time() - p["battle_started"]
     opp = json.loads(p["battle_opp"] or "{}")
     p["battle_token"] = ""
     raw = max(0, int(body.get("score", 0)))
-    if elapsed < CATCH_MIN_SEC or raw > elapsed * CATCH_RATE:
-        save(p, "battle_token"); return err("Бой не засчитан")
     my_final = int(raw * care_bonus(p))
     opp_score = int(opp.get("score", 20))
     win = my_final > opp_score
