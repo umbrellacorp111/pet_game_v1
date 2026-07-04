@@ -47,6 +47,7 @@
     hero.loadAnim("/static/models/Laughing.fbx", "laugh");
     hero.loadAnim("/static/models/Happy.fbx", "happy");
     hero.loadAnim("/static/models/Kick.fbx", "kick");
+    hero.loadAnim("/static/models/Dance.fbx", "dance");
   }
 
   /* загрузка FBX-модели для female (если доступна) */

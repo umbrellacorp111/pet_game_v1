@@ -102,6 +102,15 @@ window.Anim = (() => {
       {at:.15, pose:{thR:[-.35,0,-.08], knR:[.5,0,0], spine:[.04,0,0], head:[.02,0,0]}},
       {at:.25, pose:{knR:[1.4,0,0], thR:[-.12,0,-.1], shR:[0,0,-1.2]}},
       {at:.4,  pose:{}}]},
+    dance:     {dur:2.4, prio:2, steps:[
+      {at:0,   pose:{shL:[0,0,2.2], shR:[0,0,-2.2], pelvis:[.08,0,0], head:[.05,0,.1]}},
+      {at:.3,  pose:{shL:[0,0,-1.8], shR:[0,0,1.8], pelvis:[-.06,0,0], head:[.05,0,-.1]}},
+      {at:.6,  pose:{shL:[0,0,2.4], shR:[0,0,-1.6], pelvis:[.06,0,0]}},
+      {at:.9,  pose:{shL:[0,0,-1.6], shR:[0,0,2.4], pelvis:[-.04,0,0]}},
+      {at:1.2, pose:{thL:[-.15,0,0]}},
+      {at:1.5, pose:{thR:[-.15,0,0]}},
+      {at:1.8, pose:{}},
+      {at:2.1, pose:{}}]},
     celebrate: {dur:2.2, prio:6, jump:true, steps:[
       {at:0,pose:{shL:[0,0,2.7], shR:[0,0,-2.7]}, snd:"vWow", fx:["star",10]},
       {at:.5,pose:{shL:[0,0,2.2], shR:[0,0,-2.7], pelvis:[0,0,.1]}},
@@ -125,6 +134,41 @@ window.Anim = (() => {
       {at:1.8,pose:{}, face:{open:0}}]},
   };
 
+  /* ================= ТАНЕЦ (idle-цикл) ================= */
+  let dancePhase = "wait", danceTimer = 0, dancePlayTimer = 0;
+  const DANCE_DUR = 3;
+
+  function danceTick(dt){
+    if (!H || sleepMode || GS.room === "bed" || GS.mode !== "play") return;
+    danceTimer += dt;
+
+    // Ожидание — начинаем танец после 3с бездействия
+    if (dancePhase === "wait"){
+      if (lastInput >= 3){ doDance(); dancePhase = "dancing"; dancePlayTimer = 0; danceTimer = 0 }
+      return;
+    }
+
+    // Пользователь что-то нажал — сброс
+    if (lastInput < 3){ dancePhase = "wait"; danceTimer = 0; return }
+
+    // Фаза танца — считаем длительность
+    if (dancePhase === "dancing"){
+      dancePlayTimer += dt;
+      if (dancePlayTimer >= DANCE_DUR){ dancePhase = "pause"; danceTimer = 0 }
+      return;
+    }
+
+    // Пауза 5с между танцами
+    if (dancePhase === "pause" && danceTimer >= 5){
+      doDance(); dancePhase = "dancing"; dancePlayTimer = 0
+    }
+  }
+
+  function doDance(){
+    if (H && H.isFBX) H.playAnim("dance");
+    else play("dance", true);
+  }
+
   function play(name, force){
     const def = A[name]; if (!def || !H) return 0;
     if (action && !force && def.prio < action.prio && action.t < action.dur) return 0;
@@ -142,7 +186,7 @@ window.Anim = (() => {
     ["stretch",1.4],["footTap",2],["sigh",1],["nod",1.4],["wave",.4],
   ];
   let idleNext = 2.5, lastIdle = "", lastInput = 0, afkStage = 0, sleepMode = false;
-  Bus.on("input:any", ()=>{ lastInput = 0;
+  Bus.on("input:any", ()=>{ lastInput = 0; dancePhase = "wait"; danceTimer = 0; dancePlayTimer = 0;
     if (afkStage >= 2 && !sleepMode){ afkStage = 0; stopHold(); play("wake", true) }
     else afkStage = 0;
   });
@@ -336,6 +380,7 @@ window.Anim = (() => {
         if (auraAcc > 1.6){ auraAcc = 0; Engine.particles.spawn("zzz", headPos(), 1, .2) }
       }
       // Событие дня / UI-эффекты всё равно работают
+      danceTick(dt);
       faceTick(dt, t);
       idleTick(dt);
       return;
@@ -406,6 +451,7 @@ window.Anim = (() => {
       if (auraAcc > 1.6){ auraAcc = 0; Engine.particles.spawn("zzz", headPos(), 1, .2) }
     }
 
+    danceTick(dt);
     faceTick(dt, t);
     idleTick(dt);
   }
