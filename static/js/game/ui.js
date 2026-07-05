@@ -125,10 +125,11 @@ window.UI = (() => {
     kitchen(){ const s = S(); if (!s) return ''; return Object.entries(s.foods).map(([id,f]) =>
       `<div class="food" data-action="feed-${id}"><span class="fe">${f.emoji}</span><b>${f.name}</b><small>${f.price} 🪙</small></div>`).join("") },
     game(){ const s = S(); if (!s) return '';
-      return `<div class="bigAct g-gold ${s.game_cd>0?'dis':''}" data-action="catch">
-        🍔 Лови еду<small>${s.game_cd>0?"отдых "+s.game_cd+" c":"до 45 🪙 · рекорд "+s.best_score}</small></div>
-      <div class="bigAct g-viol ${s.simon_cd>0?'dis':''}" data-action="simon">
-        🎵 Ритм<small>${s.simon_cd>0?"отдых "+s.simon_cd+" c":"6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len}</small></div>` },
+      return `<div style="display:flex;gap:8px">
+        <div class="bigAct g-gold ${s.game_cd>0?'dis':''}" data-action="catch" style="flex:1;min-width:0">
+          🍔 Лови еду<small>${s.game_cd>0?"отдых "+s.game_cd+" c":"до 45 🪙 · рекорд "+s.best_score}</small></div>
+        <div class="bigAct g-viol ${s.simon_cd>0?'dis':''}" data-action="simon" style="flex:1;min-width:0">
+          🎵 Ритм<small>${s.simon_cd>0?"отдых "+s.simon_cd+" c":"6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len}</small></div></div>` },
     pond(){ const s = S(); if (!s) return '';
       return `<div class="bigAct g-sky ${s.fishing_cd>0?'dis':''}" data-action="fishing">
         🎣 Рыбалка<small>${s.fishing_cd>0?"отдых "+s.fishing_cd+" c":"до 40 🪙 · рекорд "+(s.best_fishing||0)}</small></div>` },
@@ -148,7 +149,7 @@ window.UI = (() => {
           : "Играй в мини-игры (+34%) и ухаживай (+10%), чтобы зарядить"}</div>
         ${full ? `<div class="bigAct g-red" style="margin-top:12px" data-action="arena">
           ⚔️ НАЙТИ СОПЕРНИКА<small>🔥 стрик ${streak}</small></div>`
-          : `<div class="bigAct g-red" style="margin-top:10px;opacity:.5;pointer-events:none">
+          : `<div class="bigAct g-red locked" style="margin-top:10px">
           🔒 ЗАРЯДИ АРЕНУ<small>нужно 100% заряда</small></div>`}
         <div class="chargeHint" style="margin-top:6px">Побед ${s.wins} · Поражений ${s.losses} · стрик ${streak}🔥</div></div>` },
     bed(){ const s = S(); if (!s) return ''; return s.sleeping
