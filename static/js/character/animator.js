@@ -404,7 +404,7 @@ window.Anim = (() => {
     /* бленд поз к целям */
     const k = 1 - Math.pow(.002, dt*blend/6);
     for (const bk in H.bones){
-      if (bk === "root" || bk === "hatSlot" || bk === "faceSlot") continue;
+      if (bk === "root" || bk === "hatSlot" || bk === "faceSlot" || bk === "skirtSlot") continue;
       const b = H.bones[bk], r = H.rest[bk];
       const tg = tgt[bk] || [0,0,0];
       const o = off[bk] = off[bk] || {x:0,y:0,z:0};

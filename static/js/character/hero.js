@@ -267,11 +267,7 @@ window.Hero = (() => {
           const needed = ["pelvis","spine","neck","head","thL","thR","knL","knR","shL","shR","elL","elR"];
           needed.forEach(k => { if (!bones[k]){ const g = new THREE.Group(); bones.root.add(g); bones[k] = g } });
 
-          // rest-поза (текущие rotation костей)
-          const rest = {};
-          for (const k in bones) rest[k] = bones[k].rotation.clone();
-
-          // Слоты экипировки
+          // Слоты экипировки (создаём ДО rest-позы, чтобы были в rest)
           if (bones.head){
             const hs = new THREE.Group(); hs.position.set(0, .3, 0); bones.head.add(hs); bones.hatSlot = hs;
             const fs = new THREE.Group(); fs.position.set(0, .12, .35); bones.head.add(fs); bones.faceSlot = fs;
@@ -279,6 +275,10 @@ window.Hero = (() => {
           if (bones.pelvis){
             const ss = new THREE.Group(); ss.position.set(0, -.15, 0); bones.pelvis.add(ss); bones.skirtSlot = ss;
           }
+
+          // rest-поза (текущие rotation костей)
+          const rest = {};
+          for (const k in bones) rest[k] = bones[k].rotation.clone();
 
           // Тач-зоны: создаём невидимые сферы на корпусе для raycast
           const zones = [];
