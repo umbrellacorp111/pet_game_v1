@@ -386,6 +386,8 @@ window.Games = (() => {
       FH.hookY = H * FH.depth;
       FH.hookVisible = true;
       FH.catchIdx = -1;
+      $("fHint").textContent = "👆 Тапни чтобы вытащить леску";
+      $("fHint").style.opacity = ".4";
       Sfx.play("swoosh");
       hap("medium");
     }
@@ -396,6 +398,16 @@ window.Games = (() => {
       if (FH.phase === "charge" && !FH.charging){
         FH.charging = true;
         FH.power = 0;
+      } else if (FH.phase === "wait" && FH.hookVisible){
+        // reel back
+        FH.phase = "charge";
+        FH.hookVisible = false;
+        FH.catchIdx = -1;
+        for (const f of FH.fish) { f.interested = false; f.missCd = performance.now() + 2000 }
+        Sfx.play("reel");
+        hap("light");
+        $("fHint").textContent = "👆 Держи чтобы зарядить — отпусти для заброса";
+        $("fHint").style.opacity = "1";
       } else if (FH.catchIdx >= 0){
         const f = FH.fish[FH.catchIdx];
         if (f && !f.caught){
