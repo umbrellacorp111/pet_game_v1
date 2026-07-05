@@ -129,6 +129,9 @@ window.UI = (() => {
         🍔 Лови еду<small>${s.game_cd>0?"отдых "+s.game_cd+" c":"до 45 🪙 · рекорд "+s.best_score}</small></div>
       <div class="bigAct g-viol ${s.simon_cd>0?'dis':''}" data-action="simon">
         🎵 Ритм<small>${s.simon_cd>0?"отдых "+s.simon_cd+" c":"6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len}</small></div>` },
+    pond(){ const s = S(); if (!s) return '';
+      return `<div class="bigAct g-sky ${s.fishing_cd>0?'dis':''}" data-action="fishing">
+        🎣 Рыбалка<small>${s.fishing_cd>0?"отдых "+s.fishing_cd+" c":"до 40 🪙 · рекорд "+(s.best_fishing||0)}</small></div>` },
     bath(){ return `<div class="bigAct g-mint" data-action="shower">🚿 Помыть<small>чистота → 100 · +XP</small></div>` },
     arena(){ const s = S(); if (!s) return '';
       const full = s.arena_charge >= 100;
@@ -374,6 +377,7 @@ window.UI = (() => {
       else if (a.startsWith("feed-")) feed(a.slice(5));
       else if (a === "catch") Games.startCatch();
       else if (a === "simon") Games.startSimon();
+      else if (a === "fishing") Games.startFishing();
       else if (a === "shower") shower();
       else if (a === "arena") Arena.start();
       else if (a === "sleep" || a === "wake") sleep();
@@ -404,12 +408,14 @@ window.UI = (() => {
       let changed = false;
       if (s.game_cd > 0){ s.game_cd--; changed = true }
       if (s.simon_cd > 0){ s.simon_cd--; changed = true }
-      if (changed && GS.room === "game"){
+      if (s.fishing_cd > 0){ s.fishing_cd--; changed = true }
+      if (changed){
+        const room = GS.room;
         const btns = $("roomPanel").querySelectorAll("[data-action]");
         btns.forEach(btn => {
           const sm = btn.querySelector("small");
           if (!sm) return;
-          if (btn.dataset.action === "catch"){
+          if (btn.dataset.action === "catch" && (room === "game" || !room)){
             sm.textContent = s.game_cd > 0
               ? "отдых "+s.game_cd+" c" : "до 45 🪙 · рекорд "+s.best_score;
             btn.classList.toggle("dis", s.game_cd > 0);
@@ -417,6 +423,10 @@ window.UI = (() => {
             sm.textContent = s.simon_cd > 0
               ? "отдых "+s.simon_cd+" c" : "6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len;
             btn.classList.toggle("dis", s.simon_cd > 0);
+          } else if (btn.dataset.action === "fishing"){
+            sm.textContent = s.fishing_cd > 0
+              ? "отдых "+s.fishing_cd+" c" : "до 40 🪙 · рекорд "+(s.best_fishing||0);
+            btn.classList.toggle("dis", s.fishing_cd > 0);
           }
         });
       }

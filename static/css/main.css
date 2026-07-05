@@ -27,6 +27,7 @@ body[data-room="game"]    {background:radial-gradient(120% 100% at 50% 0%,#12224
 body[data-room="bath"]    {background:radial-gradient(120% 100% at 50% 0%,#0e3644,#051a21 70%)}
 body[data-room="bed"]     {background:radial-gradient(120% 100% at 50% 0%,#0d0a2e,#040312 70%)}
 body[data-room="arena"]   {background:radial-gradient(120% 100% at 50% 0%,#3d1224,#170610 70%)}
+body[data-room="pond"]    {background:radial-gradient(120% 100% at 50% 0%,#143d4a,#071e26 70%)}
 /* миры от экипированного фона — поверх комнаты */
 body[data-world="bg_sunset"]{background:linear-gradient(180deg,#3b1d54,#a3376b 60%,#c96a3f)}
 body[data-world="bg_space"] {background:radial-gradient(circle at 30% 20%,#3a2a7a,#0a0620 70%)}
@@ -350,6 +351,33 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 .simonSteps i{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.16)}
 .simonSteps i.done{background:var(--mint);box-shadow:0 0 8px var(--mint)}
 .simonSteps i.cur{background:var(--gold);animation:dotPing 1s infinite}
+
+/* ---------- рыбалка ---------- */
+#fishingOv{background:radial-gradient(120% 80% at 50% 0%,#0e4a5a,#06222d 70%)}
+.fPond{flex:1;position:relative;overflow:hidden;cursor:pointer;touch-action:manipulation}
+.fWaves{position:absolute;inset:0;pointer-events:none;overflow:hidden;
+  background:repeating-linear-gradient(90deg,transparent,transparent 40px,rgba(255,255,255,.04) 40px,rgba(255,255,255,.04) 42px);
+  animation:fWave 3s linear infinite;opacity:.6}
+@keyframes fWave{from{transform:translateX(0)}to{transform:translateX(42px)}}
+.fWaves::after{content:"🌊  🌊  🌊  🌊  🌊  🌊  🌊  🌊";position:absolute;bottom:10%;left:0;right:0;
+  font-size:40px;letter-spacing:20px;opacity:.15;animation:fWave2 6s linear infinite;white-space:nowrap}
+@keyframes fWave2{from{transform:translateX(0)}to{transform:translateX(-200px)}}
+.fBobber{position:absolute;bottom:40%;left:50%;margin-left:-22px;font-size:44px;z-index:2;
+  animation:fFloat 2.2s ease-in-out infinite;transition:transform .15s;cursor:pointer;filter:drop-shadow(0 4px 12px rgba(0,0,0,.4))}
+@keyframes fFloat{50%{transform:translateY(-10px)}}
+.fBobber.bite{animation:fBite .5s ease-in-out infinite;transform:translateY(10px)}
+@keyframes fBite{50%{transform:translateY(4px)}}
+.fBobber.catch{animation:fCatch .4s forwards;color:var(--gold)}
+@keyframes fCatch{30%{transform:translateY(-16px) scale(1.2)}100%{transform:translateY(0) scale(1)}}
+.fBobber.miss{animation:fMiss .4s forwards;opacity:.5}
+@keyframes fMiss{30%{transform:translateY(6px)}100%{transform:translateY(0);opacity:.5}}
+.fCatch{position:absolute;bottom:50%;left:50%;margin-left:-30px;font-size:56px;z-index:3;
+  opacity:0;transform:scale(0);transition:all .2s cubic-bezier(.3,1.6,.5,1);pointer-events:none}
+.fCatch.show{opacity:1;transform:scale(1)}
+.fCatch.caught{opacity:1;transform:scale(1.4) translateY(-30px);transition:all .35s cubic-bezier(.3,1.6,.5,1)}
+.fSplash{position:absolute;left:50%;bottom:45%;font-size:18px;font-weight:900;color:var(--gold);
+  pointer-events:none;animation:fSplashUp .6s forwards;z-index:4;text-shadow:0 0 12px rgba(255,201,60,.6)}
+@keyframes fSplashUp{from{opacity:1;transform:translateY(0) scale(.6)}to{opacity:0;transform:translateY(-60px) scale(1.2)}}
 
 /* ---------- арена-оверлеи ---------- */
 .vsModal{position:relative;overflow:hidden}

@@ -196,6 +196,139 @@ window.Games = (() => {
     finishPending("happy");
   }
 
+  /* ---------- Рыбалка ---------- */
+  const FISH = ["🐟","🐠","🐡","🐙","🦐","🦀"];
+  const FISH_BONUS = [1,1,2,3,1,1];
+  let FH = null;
+
+  function runFishing(token, onEnd){
+    const ov = $("fishingOv");
+    ov.classList.add("on"); $("fishingEnd").classList.remove("on");
+    const pond = $("fPond");
+    FH = {token, score:0, t0:performance.now(), dur:30000, over:false, onEnd,
+          fishTimer:0, fishActive:false, nextFishAt:2000, fishType:0};
+    $("fScore").textContent = "0";
+    $("fBobber").className = "fBobber";
+    $("fCatch").textContent = "";
+    let animId = null;
+
+    function spawnFish(){
+      if (FH.over) return;
+      const idx = Math.random() < 0.1 ? 3 : Math.random() < 0.5 ? 0|Math.random()*2 : 2|Math.random()*2;
+      FH.fishType = idx;
+      FH.fishActive = true;
+      FH.fishTimer = performance.now();
+      const bobber = $("fBobber");
+      bobber.className = "fBobber bite";
+      $("fCatch").textContent = FISH[idx];
+      $("fCatch").className = "fCatch show";
+      Sfx.play("splash");
+      hap("light");
+    }
+
+    function catchFish(){
+      if (!FH || !FH.fishActive) return;
+      FH.fishActive = false;
+      const bonus = FISH_BONUS[FH.fishType];
+      FH.score += bonus;
+      $("fScore").textContent = FH.score;
+      $("fBobber").className = "fBobber catch";
+      $("fCatch").className = "fCatch caught";
+      Sfx.play("reel"); Sfx.play("coin");
+      hap("ok");
+      Engine.cam.shake(.03);
+      const splash = document.createElement("div");
+      splash.className = "fSplash";
+      splash.textContent = bonus > 1 ? "✨+"+bonus : "+1";
+      pond.appendChild(splash);
+      setTimeout(() => splash.remove(), 600);
+      scheduleNext();
+    }
+
+    function missFish(){
+      if (!FH) return;
+      FH.fishActive = false;
+      $("fBobber").className = "fBobber miss";
+      $("fCatch").className = "fCatch";
+      scheduleNext();
+    }
+
+    function scheduleNext(){
+      FH.nextFishAt = performance.now() + 600 + Math.random() * 1200;
+    }
+
+    function tapHandler(){
+      if (!FH || FH.over) return;
+      if (FH.fishActive) catchFish();
+    }
+
+    pond.addEventListener("pointerdown", tapHandler);
+
+    function loop(){
+      if (!FH || FH.over) return;
+      const now = performance.now();
+      const el = now - FH.t0;
+
+      $("fTimerFill").style.width = Math.max(0, 100 - 100*el/FH.dur) + "%";
+
+      if (!FH.fishActive && now >= FH.nextFishAt) spawnFish();
+
+      if (FH.fishActive && now - FH.fishTimer > 900){
+        missFish();
+      }
+
+      if (el >= FH.dur){
+        FH.over = true;
+        FH.fishActive = false;
+        pond.removeEventListener("pointerdown", tapHandler);
+        onEnd();
+        return;
+      }
+      animId = requestAnimationFrame(loop);
+    }
+
+    animId = requestAnimationFrame(loop);
+
+    // cleanup on exit
+    FH._stop = () => {
+      if (animId) cancelAnimationFrame(animId);
+      pond.removeEventListener("pointerdown", tapHandler);
+    };
+  }
+
+  async function startFishing(){
+    try {
+    const d = await Api.call("fishing_start"); if(!d) return;
+    GS.set("S", d); UI.render();
+    runFishing(d.token, endFishing);
+    } catch(e){ console.error("[startFishing]", e) }
+  }
+  async function endFishing(){
+    try {
+    const d = await Api.call("fishing_finish", {score:FH.score});
+    if (d){
+      $("fishingEndText").textContent =
+        `Рыбы: ${d.score} 🐟 · Награда: +${d.reward} 🪙${d.score>GS.S.best_fishing?" · НОВЫЙ РЕКОРД!":""}`;
+      GS.pending = d;
+    } else $("fishingEndText").textContent = "Рыбы: " + FH.score;
+    $("fishingEnd").classList.add("on");
+    } catch(e){ console.error("[endFishing]", e) }
+  }
+  function closeFishing(){
+    try {
+    if (FH && FH._stop) FH._stop();
+    $("fishingOv").classList.remove("on");
+    $("fishingEnd").classList.remove("on");
+    finishPending("happy");
+    } catch(e){ console.error("[closeFishing]", e) }
+  }
+  function exitFishing(){
+    if (FH){ FH.over = true; if (FH._stop) FH._stop() }
+    $("fishingOv").classList.remove("on");
+    $("fishingEnd").classList.remove("on");
+    finishPending("happy");
+  }
+
   function finishPending(emo){
     try {
     if (GS.pending){
@@ -213,5 +346,6 @@ window.Games = (() => {
   }
 
   return { bind, startCatch, closeCatch, exitCatch, startSimon, closeSimon, exitSimon, runCatch,
+           startFishing, closeFishing, exitFishing,
            get G(){ return G } };
 })();

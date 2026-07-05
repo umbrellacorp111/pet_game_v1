@@ -40,6 +40,8 @@ window.Sfx = (() => {
     sparkle:() => seq([1568,1976,2349],.05,.09,"sine",.08),
     legend: () => { seq([523,659,784,1046,1319],.08,.2,"triangle",.18); tone(90,60,.7,"sawtooth",.1) },
     swoosh: () => tone(900,120,.3,"sawtooth",.06),
+    splash: () => seq([300,600,900],.04,.07,"sine",.1),
+    reel:   () => seq([400,500,600,700],.06,.08,"triangle",.09),
     sleep:  () => tone(400,180,.5,"sine",.1),
     /* «голос» героя — невербальные чирпы (док. 010 AUDIO) */
     vHappy: () => seq([720,900,1080],.06,.09,"sine",.12),
@@ -53,7 +55,7 @@ window.Sfx = (() => {
 
   /* тихий амбиент-дрон комнаты */
   const AMB = { living:[110,.014], kitchen:[130,.012], game:[90,.02],
-                bath:[150,.012], bed:[70,.016], arena:[80,.02] };
+                bath:[150,.012], bed:[70,.016], arena:[80,.02], pond:[95,.018] };
   function ambient(room){
     if (!Prefs.data.sound || !Prefs.data.sound.sfx){ stopAmbient(); return }
     const a = ctx(); if (!a) return;

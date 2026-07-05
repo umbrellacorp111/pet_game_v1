@@ -33,6 +33,7 @@ GAME_COST_ENERGY = 12
 CATCH_MIN_SEC, CATCH_MAX_REWARD, CATCH_RATE = 18, 45, 2.2
 SIMON_LEN, SIMON_REWARD_PER, SIMON_MIN_SEC_PER = 12, 6, 0.7
 GAME_COOLDOWN = 40
+FISHING_MIN_SEC, FISHING_MAX_REWARD, FISHING_RATE = 15, 40, 1.8
 
 # ---- АРЕНА ----
 CHARGE_PER_GAME = 34        # заряд за раунд мини-игры
@@ -117,6 +118,7 @@ def init_db():
     with db() as c:
         c.executescript("""
         CREATE TABLE IF NOT EXISTS players(
+            fishing_started REAL DEFAULT 0, last_fishing REAL DEFAULT 0, best_fishing INTEGER DEFAULT 0,
             user_id INTEGER PRIMARY KEY, name TEXT, pet_name TEXT DEFAULT '',
             coins INTEGER DEFAULT 150, tokens INTEGER DEFAULT 0,
             xp INTEGER DEFAULT 0, level INTEGER DEFAULT 1,
@@ -127,7 +129,8 @@ def init_db():
             last_daily INTEGER DEFAULT 0, last_seen REAL DEFAULT 0,
             game_token TEXT DEFAULT '', game_started REAL DEFAULT 0, last_game REAL DEFAULT 0,
             simon_seq TEXT DEFAULT '', simon_started REAL DEFAULT 0, last_simon REAL DEFAULT 0,
-            best_score INTEGER DEFAULT 0, best_simon INTEGER DEFAULT 0, total_games INTEGER DEFAULT 0,
+            fishing_started REAL DEFAULT 0, last_fishing REAL DEFAULT 0,
+            best_score INTEGER DEFAULT 0, best_simon INTEGER DEFAULT 0, best_fishing INTEGER DEFAULT 0, total_games INTEGER DEFAULT 0,
             arena_charge INTEGER DEFAULT 60,
             trophies INTEGER DEFAULT 0, wins INTEGER DEFAULT 0, losses INTEGER DEFAULT 0,
             ghost_score INTEGER DEFAULT 0,
@@ -135,7 +138,13 @@ def init_db():
             season INTEGER DEFAULT 0,
             items TEXT DEFAULT '[]', equipped TEXT DEFAULT '{}',
             quests TEXT DEFAULT '{}', ach TEXT DEFAULT '[]'
-        );""")
+        );
+        """)
+        # migration: add fishing columns if missing
+        for col in ("fishing_started", "last_fishing", "best_fishing"):
+            coltype = "INTEGER DEFAULT 0" if col == "best_fishing" else "REAL DEFAULT 0"
+            try: c.execute(f"ALTER TABLE players ADD COLUMN {col} {coltype}")
+            except: pass
 
 def get_player(uid, name):
     with db() as c:
@@ -274,7 +283,7 @@ def public_state(p, extra=None):
         "hunger": p["hunger"], "energy": p["energy"], "fun": p["fun"], "clean": p["clean"],
         "sleeping": bool(p["sleeping"]),
         "streak": p["streak"], "best_streak": p["best_streak"],
-        "best_score": p["best_score"], "best_simon": p["best_simon"],
+        "best_score": p["best_score"], "best_simon": p["best_simon"], "best_fishing": p.get("best_fishing", 0),
         "arena_charge": p["arena_charge"], "trophies": p["trophies"],
         "wins": p["wins"], "losses": p["losses"],
         "league": {"i": li, "name": LEAGUES[li][1], "emoji": LEAGUES[li][2],
@@ -286,6 +295,7 @@ def public_state(p, extra=None):
         "shop": SHOP, "arena_shop": ARENA_SHOP, "foods": FOODS, "simon_len": SIMON_LEN,
         "game_cd": max(0, int(GAME_COOLDOWN - (now - p["last_game"]))),
         "simon_cd": max(0, int(GAME_COOLDOWN - (now - p["last_simon"]))),
+        "fishing_cd": max(0, int(GAME_COOLDOWN - (now - p.get("last_fishing", 0)))),
     }
     if p.pop("_season_reward", None):
         st["season_reward"] = True
@@ -479,6 +489,35 @@ def find_opponent(p):
             "ghost_score": base + random.randint(-5, 8),
             "equipped": "{}", "bot": True}
 
+# ---------- API: рыбалка ----------
+async def api_fishing_start(request):
+    p = await auth(request)
+    blocked = game_gate(p, "last_fishing")
+    if blocked: return blocked
+    p["fishing_started"] = time.time()
+    save(p, "fishing_started")
+    return ok(p)
+
+async def api_fishing_finish(request):
+    p = await auth(request); body = request["body"]
+    if not p.get("fishing_started"):
+        return err("Рыбалка не была начата")
+    elapsed = time.time() - p["fishing_started"]
+    p["fishing_started"] = 0
+    score = max(0, int(body.get("score", 0)))
+    if elapsed < FISHING_MIN_SEC:
+        save(p, "fishing_started"); return err("Рыбалка не засчитана")
+    reward = min(FISHING_MAX_REWARD, score)
+    p["coins"] += reward; p["last_fishing"] = time.time()
+    p["best_fishing"] = max(p.get("best_fishing", 0), score)
+    apply_game_cost(p)
+    lvls = add_xp(p, 10 + score // 4)
+    save(p, "fishing_started","coins","energy","fun","hunger","last_fishing",
+         "total_games","best_fishing","xp","level")
+    add_charge(p, CHARGE_PER_GAME)
+    bump_quest(p, "game"); bump_quest(p, "earn", reward)
+    return ok(p, reward=reward, score=score, levelup=lvls, new_ach=check_achievements(p))
+
 async def api_battle_start(request):
     p = await auth(request)
     blocked = awake_required(p)
@@ -648,6 +687,7 @@ async def main():
     app.router.add_static("/static", STATIC)
     for name in ("state","setname","daily","feed","shower","sleep",
                  "game_start","game_finish","simon_start","simon_finish",
+                 "fishing_start","fishing_finish",
                  "battle_start","battle_finish","arena_buy",
                  "claim_quest","buy","equip","top"):
         app.router.add_post(f"/api/{name}", globals()[f"api_{name}"])

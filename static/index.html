@@ -96,6 +96,7 @@
   <div class="t on" data-room="living"><span class="i">🛋</span>Дом</div>
   <div class="t" data-room="kitchen"><span class="i">🍳</span>Кухня</div>
   <div class="t" data-room="game"><span class="i">🕹</span>Кибер</div>
+  <div class="t" data-room="pond"><span class="i">🎣</span>Озеро</div>
   <div class="t" data-room="arena"><span class="i">⚔️</span>Арена<span class="dot" id="aDot" style="display:none"></span></div>
   <div class="t" data-room="bath"><span class="i">🚿</span>Ванная</div>
   <div class="t" data-room="bed"><span class="i">🌙</span>Спальня</div>
@@ -150,6 +151,23 @@
     <div class="huge">🎼</div><h3 class="font-d">Раунд окончен!</h3>
     <p id="simonEndText"></p>
     <button class="btn" onclick="Games.closeSimon()">Забрать награду</button></div></div>
+</div>
+
+<!-- МИНИ-ИГРА: Рыбалка -->
+<div class="gameOv" id="fishingOv">
+  <div class="gHud"><span class="font-d" style="font-size:13px">РЫБАЛКА 🎣</span>
+    <div class="gTimer"><div id="fTimerFill"></div></div>
+    <span class="gScore" id="fScore">0</span>
+    <button class="gExit" onclick="Games.exitFishing()">✕</button></div>
+  <div class="fPond" id="fPond">
+    <div class="fWaves"></div>
+    <div class="fBobber" id="fBobber">🎣</div>
+    <div class="fCatch" id="fCatch"></div>
+  </div>
+  <div class="gEnd" id="fishingEnd"><div class="modal glass">
+    <div class="huge">🎣</div><h3 class="font-d">Рыбалка окончена!</h3>
+    <p id="fishingEndText"></p>
+    <button class="btn" onclick="Games.closeFishing()">Забрать награду</button></div></div>
 </div>
 
 <!-- АРЕНА -->
