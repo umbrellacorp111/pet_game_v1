@@ -156,6 +156,7 @@ window.Hero = (() => {
         } catch(e){
           console.warn("[Hero] clothes load fail", slot, e);
           this._clothesFBX[slot] = {mesh: null, loaded: true};
+          try { Bus.emit("api:error", "3D-одежда не загрузилась — проверь файл "+url) } catch(_){}
         }
       },
       setEquip(equipped, defOf){
@@ -172,8 +173,10 @@ window.Hero = (() => {
         if (equipped.face) put(faceSlot, equipped.face, .38);
         /* 3D-одежда */
         if (equipped.skirt){
-          if (this._clothesFBX.skirt?.loaded) this._clothesFBX.skirt.mesh.visible = true;
-          else this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", skirtSlot);
+          if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
+            this._clothesFBX.skirt.mesh.visible = true;
+          else if (!this._clothesFBX.skirt?.loaded)
+            this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", skirtSlot);
         } else if (this._clothesFBX.skirt?.mesh) {
           this._clothesFBX.skirt.mesh.visible = false;
         }
@@ -313,6 +316,7 @@ window.Hero = (() => {
               } catch(e){
                 console.warn("[Hero] clothes load fail", slot, e);
                 this._clothesFBX[slot] = {mesh: null, loaded: true};
+                try { Bus.emit("api:error", "⚠️ 3D-одежда не загрузилась") } catch(_){}
               }
             },
             setEquip(equipped, defOf){
@@ -329,8 +333,10 @@ window.Hero = (() => {
               if (equipped.face && bones.faceSlot) put(bones.faceSlot, equipped.face, .45);
               /* 3D-одежда */
               if (equipped.skirt && bones.skirtSlot){
-                if (this._clothesFBX.skirt?.loaded) this._clothesFBX.skirt.mesh.visible = true;
-                else this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", bones.skirtSlot);
+                if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
+                  this._clothesFBX.skirt.mesh.visible = true;
+                else if (!this._clothesFBX.skirt?.loaded)
+                  this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", bones.skirtSlot);
               } else if (this._clothesFBX.skirt?.mesh) {
                 this._clothesFBX.skirt.mesh.visible = false;
               }
