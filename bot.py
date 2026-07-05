@@ -118,7 +118,6 @@ def init_db():
     with db() as c:
         c.executescript("""
         CREATE TABLE IF NOT EXISTS players(
-            fishing_started REAL DEFAULT 0, last_fishing REAL DEFAULT 0, best_fishing INTEGER DEFAULT 0,
             user_id INTEGER PRIMARY KEY, name TEXT, pet_name TEXT DEFAULT '',
             coins INTEGER DEFAULT 150, tokens INTEGER DEFAULT 0,
             xp INTEGER DEFAULT 0, level INTEGER DEFAULT 1,
