@@ -7,13 +7,13 @@ window.Hero = (() => {
   const M = (color, rough=.6) => new THREE.MeshStandardMaterial({color, roughness:rough, metalness:.05});
 
   /* процедурная юбка — fallback, если FBX не загрузился */
-  function skirtFallback(bone, color=0xfff0f4){
-    const seg = 28, h = .35, rT = .24, rB = .44;
+  function skirtFallback(bone, color=0xffc0d0){
+    const seg = 28, h = .38, rT = .35, rB = .55;
     const pos = [], idx = [];
     for (let i = 0; i <= seg; i++){
-      const a = i/seg*Math.PI*2, w = 1+.08*Math.sin(a*6);
+      const a = i/seg*Math.PI*2, w = 1+.12*Math.sin(a*8);
       const c=Math.cos(a), s=Math.sin(a);
-      pos.push(rT*w*c, 0, rT*w*s, rB*w*c, -h, rB*w*s);
+      pos.push(rT*w*c, .08, rT*w*s, rB*w*c, -h+.08, rB*w*s);
     }
     for (let i = 0; i < seg; i++){
       const a=i*2, b=i*2+1, c=(i+1)*2, d=(i+1)*2+1;
@@ -23,8 +23,9 @@ window.Hero = (() => {
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setIndex(idx); g.computeVertexNormals();
     const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({
-      color, roughness:.7, metalness:.05, side:THREE.DoubleSide}));
+      color, roughness:.6, metalness:.05, side:THREE.DoubleSide}));
     m.castShadow = true; m.receiveShadow = true;
+    m.position.set(0, -.03, .1);
     bone.add(m); return m;
   }
 
@@ -178,8 +179,9 @@ window.Hero = (() => {
         } catch(e){
           console.warn("[Hero] clothes load fail", slot, e);
           const fb = skirtFallback(bone);
-          fb.visible = false;
           this._clothesFBX[slot] = {mesh: fb, loaded: true};
+          const eq = GS?.data?.S?.equipped;
+          if (eq?.[slot]) { fb.visible = true; }
           Bus.emit("api:error", "3D-юбка (FBX) не загрузилась — нарисовал процедурную");
         }
       },
@@ -340,8 +342,9 @@ window.Hero = (() => {
               } catch(e){
                 console.warn("[Hero] clothes load fail", slot, e);
                 const fb = skirtFallback(bone);
-                fb.visible = false;
                 this._clothesFBX[slot] = {mesh: fb, loaded: true};
+                const eq = GS?.data?.S?.equipped;
+                if (eq?.[slot]) { fb.visible = true; }
                 Bus.emit("api:error", "3D-юбка (FBX) не загрузилась — нарисовал процедурную");
               }
             },
