@@ -196,103 +196,269 @@ window.Games = (() => {
     finishPending("happy");
   }
 
-  /* ---------- Рыбалка ---------- */
-  const FISH = ["🐟","🐠","🐡","🐙","🦐","🦀"];
-  const FISH_BONUS = [1,1,2,3,1,1];
+  /* ---------- Рыбалка (глубинный заброс) ---------- */
+  const FISH_TYPES = [
+    {e:"🐟", n:"Пескарь",  v:1, dMin:.15, dMax:.35, speed:50},
+    {e:"🐠", n:"Золотая",  v:1, dMin:.25, dMax:.50, speed:40},
+    {e:"🐡", n:"Ёрш",      v:2, dMin:.40, dMax:.65, speed:35},
+    {e:"🐙", n:"Осьминог", v:3, dMin:.55, dMax:.80, speed:28},
+    {e:"🦈", n:"Акула",    v:5, dMin:.70, dMax:.95, speed:45},
+  ];
   let FH = null;
 
   function runFishing(token, onEnd){
     const ov = $("fishingOv");
     ov.classList.add("on"); $("fishingEnd").classList.remove("on");
-    const pond = $("fPond");
-    FH = {token, score:0, t0:performance.now(), dur:30000, over:false, onEnd,
-          fishTimer:0, fishActive:false, nextFishAt:2000, fishType:0};
+    const c = $("fCanvas"), x = c.getContext("2d");
+    let W = 0, H = 0;
+
+    function resize(){
+      const w = c.clientWidth, h = c.clientHeight;
+      if (w < 1 || h < 1) return;
+      c.width = w * devicePixelRatio;
+      c.height = h * devicePixelRatio;
+      x.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+      W = w; H = h;
+    }
+    resize();
+
+    FH = {
+      token, score:0, t0:performance.now(), dur:35000, over:false, onEnd,
+      phase:"charge", power:0, charging:false, depth:0,
+      hookX:0, hookY:0, hookVisible:false,
+      fish:[], catchIdx:-1, biteTime:0,
+      combo:0, comboT:0, caught:[],
+    };
     $("fScore").textContent = "0";
-    $("fBobber").className = "fBobber";
-    $("fCatch").textContent = "";
-    let animId = null;
+    let lastFrame = performance.now();
+    let fishTimer = 0;
 
     function spawnFish(){
-      if (FH.over) return;
-      const idx = Math.random() < 0.1 ? 3 : Math.random() < 0.5 ? 0|Math.random()*2 : 2|Math.random()*2;
-      FH.fishType = idx;
-      FH.fishActive = true;
-      FH.fishTimer = performance.now();
-      const bobber = $("fBobber");
-      bobber.className = "fBobber bite";
-      $("fCatch").textContent = FISH[idx];
-      $("fCatch").className = "fCatch show";
-      Sfx.play("splash");
-      hap("light");
+      const fi = FISH_TYPES[Math.random()*FISH_TYPES.length|0];
+      const fromLeft = Math.random() < .5;
+      FH.fish.push({
+        type: fi, x: fromLeft ? -40 : W+40,
+        y: fi.dMin + Math.random()*(fi.dMax-fi.dMin),
+        vx: (fromLeft ? 1 : -1) * (fi.speed + Math.random()*20),
+        interested: false, caught: false, missCd: 0,
+      });
     }
 
-    function catchFish(){
-      if (!FH || !FH.fishActive) return;
-      FH.fishActive = false;
-      const bonus = FISH_BONUS[FH.fishType];
-      FH.score += bonus;
-      $("fScore").textContent = FH.score;
-      $("fBobber").className = "fBobber catch";
-      $("fCatch").className = "fCatch caught";
-      Sfx.play("reel"); Sfx.play("coin");
-      hap("ok");
-      Engine.cam.shake(.03);
-      const splash = document.createElement("div");
-      splash.className = "fSplash";
-      splash.textContent = bonus > 1 ? "✨+"+bonus : "+1";
-      pond.appendChild(splash);
-      setTimeout(() => splash.remove(), 600);
-      scheduleNext();
+    function draw(){
+      x.clearRect(0,0,W,H);
+      // water gradient
+      const grd = x.createLinearGradient(0,0,0,H);
+      grd.addColorStop(0,"#0e6a80");
+      grd.addColorStop(.45,"#094a5a");
+      grd.addColorStop(1,"#04222d");
+      x.fillStyle = grd; x.fillRect(0,0,W,H);
+      // wave lines
+      x.strokeStyle = "rgba(255,255,255,.06)";
+      x.lineWidth = 1.5;
+      for (let i=0;i<8;i++){
+        const yy = H*(.08+.11*i)+Math.sin((performance.now()/800)+i*1.2)*4;
+        x.beginPath();
+        for (let xx=0;xx<=W;xx+=6) x.lineTo(xx, yy+Math.sin(xx/30+(performance.now()/1000)+i)*3);
+        x.stroke();
+      }
+      // fish
+      for (const f of FH.fish){
+        const s = f.type.dMax - f.type.dMin;
+        const sz = 30 + 20*(1-s);
+        x.font = `${sz}px system-ui,'Segoe UI Emoji','Apple Color Emoji',sans-serif`;
+        x.textAlign = "center"; x.textBaseline = "middle";
+        const fy = H * (f.y - (f.interested ? .04 : 0));
+        x.globalAlpha = f.caught ? .3 : 1;
+        x.fillText(f.type.e, f.x, fy);
+        x.globalAlpha = 1;
+        // interest ring
+        if (f.interested && !f.caught){
+          x.beginPath();
+          x.arc(f.x, fy, 30, 0, Math.PI*2);
+          x.strokeStyle = `rgba(255,201,60,${.3+.2*Math.sin(performance.now()/200)})`;
+          x.lineWidth = 2; x.stroke();
+        }
+      }
+      // hook line
+      if (FH.hookVisible){
+        const hy = H * FH.depth;
+        x.strokeStyle = "rgba(255,255,255,.25)";
+        x.lineWidth = 1.5; x.setLineDash([4,6]);
+        x.beginPath(); x.moveTo(0,0); x.lineTo(FH.hookX, hy); x.stroke();
+        x.setLineDash([]);
+        // bobber glow
+        x.font = "36px system-ui,'Segoe UI Emoji','Apple Color Emoji',sans-serif";
+        x.textAlign = "center"; x.textBaseline = "middle";
+        x.fillText("🎣", FH.hookX, hy);
+        // bite glow
+        if (FH.catchIdx >= 0){
+          x.beginPath();
+          x.arc(FH.hookX, hy, 28, 0, Math.PI*2);
+          x.strokeStyle = `rgba(255,94,138,${.3+.3*Math.sin(performance.now()/120)})`;
+          x.lineWidth = 3; x.stroke();
+        }
+      }
+      // power meter (right side)
+      const px = W-32, py = 26, pw = 14, ph = H-52;
+      x.fillStyle = "rgba(0,0,0,.35)";
+      x.roundRect ? x.roundRect(px,py,pw,ph,6) : 0;
+      x.fillRect(px,py,pw,ph);
+      // level markers
+      for (const fi of FISH_TYPES){
+        const my = py + ph * (1 - (fi.dMin+fi.dMax)/2);
+        x.fillStyle = "rgba(255,255,255,.12)";
+        x.fillRect(px-2, my-1, pw+4, 2);
+        x.font = "10px system-ui"; x.textAlign = "center";
+        x.fillText(fi.e, px+pw/2, my-6);
+      }
+      // power fill
+      if (FH.phase === "charge"){
+        const fill = FH.power * ph;
+        x.fillStyle = "rgba(255,201,60,.7)";
+        x.fillRect(px+2, py+ph-fill, pw-4, fill);
+      } else if (FH.hookVisible){
+        const dy = py + ph * (1 - FH.depth);
+        x.fillStyle = "rgba(78,240,188,.3)";
+        x.fillRect(px+2, dy-2, pw-4, 4);
+      }
     }
 
-    function missFish(){
-      if (!FH) return;
-      FH.fishActive = false;
-      $("fBobber").className = "fBobber miss";
-      $("fCatch").className = "fCatch";
-      scheduleNext();
-    }
-
-    function scheduleNext(){
-      FH.nextFishAt = performance.now() + 600 + Math.random() * 1200;
-    }
-
-    function tapHandler(){
-      if (!FH || FH.over) return;
-      if (FH.fishActive) catchFish();
-    }
-
-    pond.addEventListener("pointerdown", tapHandler);
-
-    function loop(){
-      if (!FH || FH.over) return;
+    function update(){
       const now = performance.now();
       const el = now - FH.t0;
-
-      $("fTimerFill").style.width = Math.max(0, 100 - 100*el/FH.dur) + "%";
-
-      if (!FH.fishActive && now >= FH.nextFishAt) spawnFish();
-
-      if (FH.fishActive && now - FH.fishTimer > 900){
-        missFish();
-      }
+      // timer
+      $("fTimerFill").style.width = Math.max(0, 100-100*el/FH.dur)+"%";
 
       if (el >= FH.dur){
         FH.over = true;
-        FH.fishActive = false;
-        pond.removeEventListener("pointerdown", tapHandler);
+        FH.phase = "done";
+        for (const f of FH.fish) f.interested = false;
         onEnd();
         return;
       }
-      animId = requestAnimationFrame(loop);
+
+      // spawn fish periodically
+      if (now - fishTimer > 1500 + Math.random()*1200){
+        if (FH.fish.length < 6) spawnFish();
+        fishTimer = now;
+      }
+
+      // move fish
+      for (let i=FH.fish.length-1; i>=0; i--){
+        const f = FH.fish[i];
+        if (f.caught){ FH.fish.splice(i,1); continue }
+        if (FH.hookVisible && !f.interested && now > f.missCd){
+          const hookDepth = FH.depth;
+          const depthMatch = Math.abs(f.y - hookDepth) < .08;
+          const dist = Math.abs(f.x - FH.hookX);
+          if (depthMatch && dist < 120) f.interested = true;
+        }
+        if (f.interested && FH.hookVisible && FH.catchIdx < 0){
+          const dx = FH.hookX - f.x;
+          f.vx = Math.sign(dx) * Math.min(Math.abs(f.vx), 60);
+          f.x += f.vx * .016;
+          if (Math.abs(dx) < 18){
+            FH.catchIdx = i;
+            FH.biteTime = now;
+            Sfx.play("splash");
+            hap("light");
+          }
+        } else if (!f.interested) {
+          f.x += f.vx * .016;
+          if ((f.x < -60 || f.x > W+60) && !f.interested) FH.fish.splice(i,1);
+        }
+      }
+
+      // bite window — escape
+      if (FH.catchIdx >= 0 && now - FH.biteTime > 700){
+        const f = FH.fish[FH.catchIdx];
+        if (f) { f.interested = false; f.missCd = now + 3000; f.vx *= -2 }
+        FH.catchIdx = -1;
+      }
     }
 
-    animId = requestAnimationFrame(loop);
+    function cast(){
+      if (FH.phase !== "charge") return;
+      FH.phase = "wait";
+      FH.charging = false;
+      FH.depth = Math.max(.05, Math.min(.95, FH.power));
+      FH.hookX = 55 + Math.random() * (W-110);
+      FH.hookY = H * FH.depth;
+      FH.hookVisible = true;
+      FH.catchIdx = -1;
+      Sfx.play("swoosh");
+      hap("medium");
+    }
 
-    // cleanup on exit
+    function downHandler(e){
+      if (!FH || FH.over) return;
+      e.preventDefault();
+      if (FH.phase === "charge" && !FH.charging){
+        FH.charging = true;
+        FH.power = 0;
+      } else if (FH.catchIdx >= 0){
+        const f = FH.fish[FH.catchIdx];
+        if (f && !f.caught){
+          f.caught = true;
+          FH.score += f.type.v;
+          $("fScore").textContent = FH.score;
+          const now = performance.now();
+          if (now - FH.comboT < 2000) FH.combo++; else FH.combo = 1;
+          FH.comboT = now;
+          const comboEl = $("fCombo");
+          if (FH.combo >= 3) { comboEl.textContent = `🔥×${FH.combo}`; comboEl.style.opacity = "1" }
+          else comboEl.style.opacity = "0";
+          Sfx.play("reel"); Sfx.play("coin");
+          hap("ok");
+          Engine.cam.shake(.03);
+          FH.catchIdx = -1;
+          const rect = c.getBoundingClientRect();
+          const spl = document.createElement("div");
+          spl.className = "fSplash";
+          spl.textContent = `+${f.type.v}`;
+          spl.style.cssText = `left:${e.clientX-rect.left}px;top:${e.clientY-rect.top}px`;
+          c.parentElement.appendChild(spl);
+          setTimeout(() => spl.remove(), 600);
+        }
+      }
+    }
+
+    function upHandler(e){
+      if (!FH || FH.over) return;
+      if (FH.phase === "charge" && FH.charging){
+        FH.charging = false;
+        cast();
+      }
+    }
+
+    function powerLoop(){
+      if (!FH || FH.over) return;
+      if (FH.charging && FH.phase === "charge"){
+        FH.power += .006;
+        if (FH.power > 1){ FH.power = 0 }
+        // hint pulse
+        $("fHint").style.opacity = .15 + .85 * FH.power;
+      }
+      requestAnimationFrame(powerLoop);
+    }
+
+    c.addEventListener("pointerdown", downHandler);
+    document.addEventListener("pointerup", upHandler);
+
+    function loop(){
+      if (!FH || FH.over) return;
+      resize();
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(powerLoop);
+    requestAnimationFrame(loop);
+
     FH._stop = () => {
-      if (animId) cancelAnimationFrame(animId);
-      pond.removeEventListener("pointerdown", tapHandler);
+      c.removeEventListener("pointerdown", downHandler);
+      document.removeEventListener("pointerup", upHandler);
     };
   }
 
