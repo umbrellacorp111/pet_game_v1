@@ -131,16 +131,32 @@ window.Hero = (() => {
 
     const hatSlot = piv(head, 0, .58, .02); bones.hatSlot = hatSlot;
     const faceSlot = piv(head, 0, .26, .36); bones.faceSlot = faceSlot;
+    const skirtSlot = piv(pelvis, 0, -.24, 0); bones.skirtSlot = skirtSlot;
 
     const rest = {};
     for (const k in bones) rest[k] = bones[k].rotation.clone();
 
     const hero = {
       group: root, bones, face, zones, rest, gender, isFBX: false,
-      fxAura: "", _equipSprites: [],
+      fxAura: "", _equipSprites: [], _clothesFBX: {},
       setLevel(level){
         const idx = Math.min(LEVEL_ACCENT.length-1, Math.floor((level-1)/4));
         badge.material.color.setHex(LEVEL_ACCENT[idx]);
+      },
+      async _loadClothesFBX(slot, url, bone){
+        if (!bone || this._clothesFBX[slot]?.loaded) return;
+        try {
+          const mesh = await new Promise((res, rej) =>
+            new THREE.FBXLoader().load(url, res, undefined, rej));
+          mesh.scale.setScalar(1.25);
+          mesh.visible = false;
+          mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
+          bone.add(mesh);
+          this._clothesFBX[slot] = {mesh, loaded: true};
+        } catch(e){
+          console.warn("[Hero] clothes load fail", slot, e);
+          this._clothesFBX[slot] = {mesh: null, loaded: true};
+        }
       },
       setEquip(equipped, defOf){
         this._equipSprites.forEach(s => s.parent && s.parent.remove(s));
@@ -154,6 +170,13 @@ window.Hero = (() => {
         };
         if (equipped.hat) put(hatSlot, equipped.hat, .5);
         if (equipped.face) put(faceSlot, equipped.face, .38);
+        /* 3D-одежда */
+        if (equipped.skirt){
+          if (this._clothesFBX.skirt?.loaded) this._clothesFBX.skirt.mesh.visible = true;
+          else this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", skirtSlot);
+        } else if (this._clothesFBX.skirt?.mesh) {
+          this._clothesFBX.skirt.mesh.visible = false;
+        }
         this.fxAura = equipped.fx || "";
       },
     };
@@ -248,10 +271,13 @@ window.Hero = (() => {
           const rest = {};
           for (const k in bones) rest[k] = bones[k].rotation.clone();
 
-          // Слоты экипировки — навешиваем на голову
+          // Слоты экипировки
           if (bones.head){
             const hs = new THREE.Group(); hs.position.set(0, .3, 0); bones.head.add(hs); bones.hatSlot = hs;
             const fs = new THREE.Group(); fs.position.set(0, .12, .35); bones.head.add(fs); bones.faceSlot = fs;
+          }
+          if (bones.pelvis){
+            const ss = new THREE.Group(); ss.position.set(0, -.15, 0); bones.pelvis.add(ss); bones.skirtSlot = ss;
           }
 
           // Тач-зоны: создаём невидимые сферы на корпусе для raycast
@@ -272,8 +298,23 @@ window.Hero = (() => {
           const hero = {
             group: fbx, bones, face: {}, zones, rest, gender: "f",
             isFBX: true, mixer, _clips, _actions,
-            playAnim, fxAura: "", _equipSprites: [],
+            playAnim, fxAura: "", _equipSprites: [], _clothesFBX: {},
             setLevel(){},
+            async _loadClothesFBX(slot, url, bone){
+              if (!bone || this._clothesFBX[slot]?.loaded) return;
+              try {
+                const mesh = await new Promise((res, rej) =>
+                  new THREE.FBXLoader().load(url, res, undefined, rej));
+                mesh.scale.setScalar(1.25);
+                mesh.visible = false;
+                mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
+                bone.add(mesh);
+                this._clothesFBX[slot] = {mesh, loaded: true};
+              } catch(e){
+                console.warn("[Hero] clothes load fail", slot, e);
+                this._clothesFBX[slot] = {mesh: null, loaded: true};
+              }
+            },
             setEquip(equipped, defOf){
               this._equipSprites.forEach(s => s.parent && s.parent.remove(s));
               this._equipSprites = [];
@@ -286,6 +327,13 @@ window.Hero = (() => {
               };
               if (equipped.hat && bones.hatSlot) put(bones.hatSlot, equipped.hat, .6);
               if (equipped.face && bones.faceSlot) put(bones.faceSlot, equipped.face, .45);
+              /* 3D-одежда */
+              if (equipped.skirt && bones.skirtSlot){
+                if (this._clothesFBX.skirt?.loaded) this._clothesFBX.skirt.mesh.visible = true;
+                else this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", bones.skirtSlot);
+              } else if (this._clothesFBX.skirt?.mesh) {
+                this._clothesFBX.skirt.mesh.visible = false;
+              }
               this.fxAura = equipped.fx || "";
             },
           };

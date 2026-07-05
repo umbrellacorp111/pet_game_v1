@@ -220,14 +220,14 @@ window.UI = (() => {
   }
   function renderShop(){
     const s = S(); if (!s) return;
-    const slotName = {hat:"Голова",face:"Лицо",bg:"Мир",fx:"Аура"};
+    const slotName = {hat:"Голова",face:"Лицо",bg:"Мир",fx:"Аура",skirt:"Одежда"};
     const row = (id,it,cur,kind) => {
       const owned = s.items.includes(id), eq = Object.values(s.equipped).includes(id);
       const r = rarity(id);
       return `<div class="card r-${r}" onclick="UI.shopTap('${id}','${kind}')"><span class="e">${it.emoji}</span>
         <div class="body"><b>${it.name}<span class="rTag ${r}">${R_NAME[r]}</span></b>
           <small>${slotName[it.slot]}${kind==='arena'?' · эксклюзив Арены':''}</small></div>
-        <span class="side ${kind==='arena'?'tokPrice':''}">${eq?'НАДЕТО':owned?'надеть':it.price+' '+cur}</span></div>`;
+        <span class="side ${kind==='arena'?'tokPrice':''}">${eq?'НАДЕТО':owned?'надеть':it.price===0?'Бесплатно':it.price+' '+cur}</span></div>`;
     };
     const coinRows = Object.entries(s.shop)
       .filter(([,it]) => shopTab==="all" || shopTab===it.slot)

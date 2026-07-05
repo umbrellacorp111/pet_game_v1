@@ -70,6 +70,7 @@ SHOP = {  # за монеты
     "bg_space":  {"name":"Космос","price":550,"emoji":"🌌","slot":"bg"},
     "bg_neon":   {"name":"Неон","price":800,"emoji":"🌈","slot":"bg"},
     "fx_sparkle":{"name":"Аура искр","price":900,"emoji":"✨","slot":"fx"},
+    "skirt_pleated":{"name":"Юбка","price":0,"emoji":"👗","slot":"skirt"},
 }
 
 ARENA_SHOP = {  # ТОЛЬКО за жетоны арены — статусная косметика
