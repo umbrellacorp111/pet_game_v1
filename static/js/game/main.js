@@ -189,7 +189,7 @@
   window.heroMain = hero;
   /* предзагрузка 3D-одежды */
   if (hero._loadClothesFBX && hero.bones.skirtSlot)
-    hero._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", hero.bones.skirtSlot);
+    hero._loadClothesFBX("skirt", "/static/models/Skirt.fbx", hero.bones.skirtSlot);
 
   GS.set("mode", "play");
   document.body.dataset.mode = "play";
