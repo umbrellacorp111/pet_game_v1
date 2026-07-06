@@ -338,8 +338,8 @@ window.Hero = (() => {
               try {
                 const mesh = await new Promise((res, rej) =>
                   new THREE.FBXLoader().load(url, res, undefined, rej));
-                mesh.scale.setScalar(0.025);
-                mesh.position.set(0, 0.03, 0.02);
+                mesh.scale.setScalar(0.5);
+                mesh.position.set(0, 0.2, 0.3);
                 mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
                 bone.add(mesh);
                 const eq = GS?.data?.S?.equipped;
