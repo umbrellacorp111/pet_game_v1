@@ -185,7 +185,7 @@ window.Hero = (() => {
           this._clothesFBX[slot] = {mesh: fb, loaded: true};
           const eq = GS?.data?.S?.equipped;
           if (eq?.[slot]) { fb.visible = true; }
-          Bus.emit("api:error", "3D-юбка (FBX) не загрузилась — нарисовал процедурную");
+          Bus.emit("api:error", "3D-юбка (FBX) не загрузилась — нарисовал процедурную. Ошибка: "+e.message);
         }
       },
       setEquip(equipped, defOf){
@@ -351,7 +351,7 @@ window.Hero = (() => {
                 this._clothesFBX[slot] = {mesh: fb, loaded: true};
                 const eq = GS?.data?.S?.equipped;
                 if (eq?.[slot]) { fb.visible = true; }
-                Bus.emit("api:error", "3D-юбка (FBX) не загрузилась — нарисовал процедурную");
+          Bus.emit("api:error", "3D-юбка (FBX) не загрузилась — нарисовал процедурную. Ошибка: "+e.message);
               }
             },
             setEquip(equipped, defOf){
