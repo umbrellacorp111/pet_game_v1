@@ -167,14 +167,17 @@ window.Hero = (() => {
         badge.material.color.setHex(LEVEL_ACCENT[idx]);
       },
       async _loadClothesFBX(slot, url, bone){
-        if (!bone || this._clothesFBX[slot]?.loaded) return;
+        if (!bone || this._clothesFBX[slot]) return;
+        this._clothesFBX[slot] = {loading: true};
         try {
           const mesh = await new Promise((res, rej) =>
             new THREE.FBXLoader().load(url, res, undefined, rej));
-          mesh.scale.setScalar(1.25);
-          mesh.visible = false;
+          mesh.scale.setScalar(0.025);
+          mesh.position.set(0, 0.03, 0.02);
           mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
           bone.add(mesh);
+          const eq = GS?.data?.S?.equipped;
+          mesh.visible = !!eq?.[slot];
           this._clothesFBX[slot] = {mesh, loaded: true};
         } catch(e){
           console.warn("[Hero] clothes load fail", slot, e);
@@ -201,7 +204,7 @@ window.Hero = (() => {
         if (equipped.skirt){
           if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
             this._clothesFBX.skirt.mesh.visible = true;
-          else if (!this._clothesFBX.skirt?.loaded)
+          else if (!this._clothesFBX.skirt)
             this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", skirtSlot);
         } else if (this._clothesFBX.skirt?.mesh) {
           this._clothesFBX.skirt.mesh.visible = false;
@@ -330,14 +333,17 @@ window.Hero = (() => {
             playAnim, fxAura: "", _equipSprites: [], _clothesFBX: {},
             setLevel(){},
             async _loadClothesFBX(slot, url, bone){
-              if (!bone || this._clothesFBX[slot]?.loaded) return;
+              if (!bone || this._clothesFBX[slot]) return;
+              this._clothesFBX[slot] = {loading: true};
               try {
                 const mesh = await new Promise((res, rej) =>
                   new THREE.FBXLoader().load(url, res, undefined, rej));
-                mesh.scale.setScalar(1.25);
-                mesh.visible = false;
+                mesh.scale.setScalar(0.025);
+                mesh.position.set(0, 0.03, 0.02);
                 mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
                 bone.add(mesh);
+                const eq = GS?.data?.S?.equipped;
+                mesh.visible = !!eq?.[slot];
                 this._clothesFBX[slot] = {mesh, loaded: true};
               } catch(e){
                 console.warn("[Hero] clothes load fail", slot, e);
@@ -364,7 +370,7 @@ window.Hero = (() => {
               if (equipped.skirt && bones.skirtSlot){
                 if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
                   this._clothesFBX.skirt.mesh.visible = true;
-                else if (!this._clothesFBX.skirt?.loaded)
+                else if (!this._clothesFBX.skirt)
                   this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", bones.skirtSlot);
               } else if (this._clothesFBX.skirt?.mesh) {
                 this._clothesFBX.skirt.mesh.visible = false;
