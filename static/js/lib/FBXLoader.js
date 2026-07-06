@@ -2046,6 +2046,7 @@
 
 			const mappingType = ColorNode.MappingInformationType;
 			const referenceType = ColorNode.ReferenceInformationType;
+			if ( ! ColorNode.Colors ) return null;
 			const buffer = ColorNode.Colors.a;
 			let indexBuffer = [];
 
