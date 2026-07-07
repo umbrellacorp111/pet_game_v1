@@ -1,6 +1,6 @@
 /* character/hero.js — живой герой. Процедурный риг (по умолчанию)
    или загрузка FBX-модели через loadFBX(). */
-console.log("%c[hero.js] BUILD-MARKER v7-skinmath", "background:#e0218a;color:#fff;font-size:14px;padding:2px 6px;border-radius:4px");
+console.log("%c[hero.js] BUILD-MARKER v8-boneByName", "background:#e0218a;color:#fff;font-size:14px;padding:2px 6px;border-radius:4px");
 window.Hero = (() => {
   const SKIN = 0xffd9b8, DARK = 0x1b1033;
   const LEVEL_ACCENT = [0x8b6bff, 0x4fc3ff, 0xffa14d, 0x4ef0bc, 0xff7ec2, 0xffc93c];
@@ -101,37 +101,49 @@ window.Hero = (() => {
      каждый кадр пересчитывается тем же преобразованием, каким скиннинг
      ставит вершины: boneMatrixWorld × boneInverse (из Skeleton). */
   function makeBoneFollower(root, bone, holder, yOff = 0){
+    const v = new THREE.Vector3(), m = new THREE.Matrix4();
+    /* Ищем скиновый меш, в скелете которого есть кость бедра.
+       Сравниваем ПО ИМЕНИ, а не по ссылке: в FBX-сцене бывают
+       кости-дубликаты, и инстанс из обхода сцены (BONE_MAP) не обязан
+       совпадать с инстансом внутри Skeleton скинового меша. */
     let sm = null, idx = -1;
+    const want = (bone && bone.name ? bone.name : "hips").toLowerCase();
     root.traverse(c => {
       if (sm || !c.isSkinnedMesh || !c.skeleton) return;
-      const i = c.skeleton.bones.indexOf(bone);
-      if (i !== -1){ sm = c; idx = i; }
+      const bs = c.skeleton.bones;
+      for (let i = 0; i < bs.length; i++){
+        const n = (bs[i].name || "").toLowerCase();
+        if (n === want || /hips$/.test(n)){ sm = c; idx = i; break; }
+      }
     });
-    const v = new THREE.Vector3(), m = new THREE.Matrix4();
-    if (!sm){
-      /* не скиновый риг — обычная мировая позиция кости */
+    if (sm){
+      const skel = sm.skeleton, jbone = skel.bones[idx];
+      console.log(`[boneFollower] режим=skeleton mesh="${sm.name}" bone="${jbone.name}" idx=${idx}`);
+      const pBind = new THREE.Vector3().setFromMatrixPosition(
+        m.copy(skel.boneInverses[idx]).invert());
+      let logged = false;
+      /* Полная цепочка из шейдера скиннинга three.js:
+         world = meshWorld × bindMatrixInverse × (boneWorld × boneInverse) × skinVertex */
       return () => {
-        bone.getWorldPosition(v);
+        m.multiplyMatrices(jbone.matrixWorld, skel.boneInverses[idx]);
+        v.copy(pBind).applyMatrix4(m);          // сустав в skin-пространстве
+        v.applyMatrix4(sm.bindMatrixInverse);   // → локальное пространство меша
+        v.applyMatrix4(sm.matrixWorld);         // → мир, как рисуется тело
+        if (!logged){ logged = true;
+          console.log(`[boneFollower] visual hips world=(${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)})`); }
         holder.parent.worldToLocal(v);
         holder.position.set(v.x, v.y + yOff, v.z);
       };
     }
-    const skel = sm.skeleton;
-    /* позиция сустава в bind-пространстве скелета */
-    const pBind = new THREE.Vector3().setFromMatrixPosition(
-      m.copy(skel.boneInverses[idx]).invert());
-    let logged = false;
-    /* Полная цепочка из шейдера скиннинга three.js:
-       world = meshWorld × bindMatrixInverse × (boneWorld × boneInverse) × skinVertex.
-       Без множителей meshWorld и bindMatrixInverse (у FBX bind-матрица
-       не единичная) точка уезжает — юбка оказывалась то на y≈22, то под полом. */
+    /* Скелет с бедром не нашли — статичная посадка: бёдра ≈ 56% высоты
+       видимого габарита героя. Юбка не следует за анимацией, но стоит
+       на своём месте. */
+    const bb = new THREE.Box3().setFromObject(root);
+    const c0 = new THREE.Vector3(); bb.getCenter(c0);
+    const hipWorld = new THREE.Vector3(c0.x, bb.min.y + (bb.max.y - bb.min.y) * 0.56, c0.z);
+    console.log(`[boneFollower] режим=static bbox y=[${bb.min.y.toFixed(2)}..${bb.max.y.toFixed(2)}] → hips world y=${hipWorld.y.toFixed(2)}`);
     return () => {
-      m.multiplyMatrices(bone.matrixWorld, skel.boneInverses[idx]);
-      v.copy(pBind).applyMatrix4(m);          // сустав в skin-пространстве
-      v.applyMatrix4(sm.bindMatrixInverse);   // → локальное пространство меша
-      v.applyMatrix4(sm.matrixWorld);         // → мир, как рисуется тело
-      if (!logged){ logged = true;
-        console.log(`[boneFollower] visual hips world=(${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)})`); }
+      v.copy(hipWorld);
       holder.parent.worldToLocal(v);
       holder.position.set(v.x, v.y + yOff, v.z);
     };
