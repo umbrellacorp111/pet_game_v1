@@ -2,6 +2,7 @@
    Чёрный экран → звёзды → портал → заголовок → выбор героя (живая
    3D-сцена) → кинематографичный переход в комнату. Загрузки-экрана нет —
    только камера, свет и партиклы. */
+console.log("%c[main.js] BUILD-MARKER v4-clothes-materialfix", "background:#e0218a;color:#fff;font-size:14px;padding:2px 6px;border-radius:4px");
 (async () => {
   const sleep = ms => new Promise(r=>setTimeout(r, ms));
 
@@ -189,7 +190,7 @@
   window.heroMain = hero;
   /* предзагрузка 3D-одежды */
   if (hero._loadClothesFBX && hero.bones.skirtSlot)
-    hero._loadClothesFBX("skirt", "/static/models/Skirt.fbx", hero.bones.skirtSlot);
+    hero._loadClothesFBX("skirt", "/static/models/clothes/Skirt.glb", hero.bones.skirtSlot);
 
   GS.set("mode", "play");
   document.body.dataset.mode = "play";
