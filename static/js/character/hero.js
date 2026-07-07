@@ -1,5 +1,6 @@
 /* character/hero.js — живой герой. Процедурный риг (по умолчанию)
    или загрузка FBX-модели через loadFBX(). */
+console.log("%c[hero.js] BUILD-MARKER v4-clothes-materialfix", "background:#e0218a;color:#fff;font-size:14px;padding:2px 6px;border-radius:4px");
 window.Hero = (() => {
   const SKIN = 0xffd9b8, DARK = 0x1b1033;
   const LEVEL_ACCENT = [0x8b6bff, 0x4fc3ff, 0xffa14d, 0x4ef0bc, 0xff7ec2, 0xffc93c];
