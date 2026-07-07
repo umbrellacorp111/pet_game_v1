@@ -1,6 +1,6 @@
 /* character/hero.js — живой герой. Процедурный риг (по умолчанию)
    или загрузка FBX-модели через loadFBX(). */
-console.log("%c[hero.js] BUILD-MARKER v4-clothes-materialfix", "background:#e0218a;color:#fff;font-size:14px;padding:2px 6px;border-radius:4px");
+console.log("%c[hero.js] BUILD-MARKER v5-diagnostics", "background:#e0218a;color:#fff;font-size:14px;padding:2px 6px;border-radius:4px");
 window.Hero = (() => {
   const SKIN = 0xffd9b8, DARK = 0x1b1033;
   const LEVEL_ACCENT = [0x8b6bff, 0x4fc3ff, 0xffa14d, 0x4ef0bc, 0xff7ec2, 0xffc93c];
@@ -253,6 +253,13 @@ window.Hero = (() => {
           const eq = GS?.S?.equipped;
           mesh.visible = !!eq?.[slot];
           this._clothesFBX[slot] = {mesh, loaded: true};
+          console.log(`[clothes] ${slot} loaded. GS.S=${!!GS?.S} equipped=${eq?.[slot]||"—"} → visible=${mesh.visible}`);
+          mesh.traverse(c => { if (c.isMesh) console.log(`[clothes] mesh "${c.name}" skinned=${!!c.isSkinnedMesh}`) });
+          setTimeout(() => {
+            const wp = new THREE.Vector3(); bone.getWorldPosition(wp);
+            const bb = new THREE.Box3().setFromObject(mesh);
+            console.log(`[clothes] ${slot} slotWorld=(${wp.x.toFixed(2)},${wp.y.toFixed(2)},${wp.z.toFixed(2)}) worldBox y=[${bb.min.y.toFixed(2)}..${bb.max.y.toFixed(2)}] x=[${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}] visible=${mesh.visible}`);
+          }, 1500);
         } catch(e){
           console.warn("[Hero] clothes load fail", slot, e);
           const fb = skirtFallback(bone);
@@ -275,6 +282,7 @@ window.Hero = (() => {
         if (equipped.hat) put(hatSlot, equipped.hat, .5);
         if (equipped.face) put(faceSlot, equipped.face, .38);
         /* 3D-одежда */
+        console.log(`[setEquip] skirt=${equipped.skirt||"—"} entry=${this._clothesFBX.skirt ? (this._clothesFBX.skirt.loaded?"loaded":"loading") : "none"}`);
         if (equipped.skirt){
           if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
             this._clothesFBX.skirt.mesh.visible = true;
@@ -417,6 +425,13 @@ window.Hero = (() => {
                 const eq = GS?.S?.equipped;
                 mesh.visible = !!eq?.[slot];
                 this._clothesFBX[slot] = {mesh, loaded: true};
+                console.log(`[clothes] ${slot} loaded. GS.S=${!!GS?.S} equipped=${eq?.[slot]||"—"} → visible=${mesh.visible}`);
+                mesh.traverse(c => { if (c.isMesh) console.log(`[clothes] mesh "${c.name}" skinned=${!!c.isSkinnedMesh}`) });
+                setTimeout(() => {
+                  const wp = new THREE.Vector3(); bone.getWorldPosition(wp);
+                  const bb = new THREE.Box3().setFromObject(mesh);
+                  console.log(`[clothes] ${slot} slotWorld=(${wp.x.toFixed(2)},${wp.y.toFixed(2)},${wp.z.toFixed(2)}) worldBox y=[${bb.min.y.toFixed(2)}..${bb.max.y.toFixed(2)}] x=[${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}] visible=${mesh.visible}`);
+                }, 1500);
               } catch(e){
                 console.warn("[Hero] clothes load fail", slot, e);
                 const fb = skirtFallback(bone);
@@ -439,6 +454,7 @@ window.Hero = (() => {
               if (equipped.hat && bones.hatSlot) put(bones.hatSlot, equipped.hat, .6);
               if (equipped.face && bones.faceSlot) put(bones.faceSlot, equipped.face, .45);
               /* 3D-одежда */
+              console.log(`[setEquip] skirt=${equipped.skirt||"—"} entry=${this._clothesFBX.skirt ? (this._clothesFBX.skirt.loaded?"loaded":"loading") : "none"} slot=${!!bones.skirtSlot}`);
               if (equipped.skirt && bones.skirtSlot){
                 if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
                   this._clothesFBX.skirt.mesh.visible = true;
