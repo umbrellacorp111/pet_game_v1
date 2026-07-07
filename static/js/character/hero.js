@@ -250,15 +250,15 @@ window.Hero = (() => {
           mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
           fitClothesFBX(mesh);
           bone.add(mesh);
-          const eq = GS?.data?.S?.equipped;
+          const eq = GS?.S?.equipped;
           mesh.visible = !!eq?.[slot];
           this._clothesFBX[slot] = {mesh, loaded: true};
         } catch(e){
           console.warn("[Hero] clothes load fail", slot, e);
           const fb = skirtFallback(bone);
           this._clothesFBX[slot] = {mesh: fb, loaded: true};
-          const eq = GS?.data?.S?.equipped;
-          if (eq?.[slot]) { fb.visible = true; }
+          const eq = GS?.S?.equipped;
+          fb.visible = !!eq?.[slot];
           Bus.emit("api:error", "3D-юбка (FBX) не загрузилась — нарисовал процедурную. Ошибка: "+e.message);
         }
       },
@@ -414,15 +414,15 @@ window.Hero = (() => {
                 mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
                 fitClothesFBX(mesh);
                 bone.add(mesh);
-                const eq = GS?.data?.S?.equipped;
+                const eq = GS?.S?.equipped;
                 mesh.visible = !!eq?.[slot];
                 this._clothesFBX[slot] = {mesh, loaded: true};
               } catch(e){
                 console.warn("[Hero] clothes load fail", slot, e);
                 const fb = skirtFallback(bone);
                 this._clothesFBX[slot] = {mesh: fb, loaded: true};
-                const eq = GS?.data?.S?.equipped;
-                if (eq?.[slot]) { fb.visible = true; }
+                const eq = GS?.S?.equipped;
+                fb.visible = !!eq?.[slot];
           Bus.emit("api:error", "3D-юбка (FBX) не загрузилась — нарисовал процедурную. Ошибка: "+e.message);
               }
             },
