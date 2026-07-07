@@ -29,6 +29,45 @@ window.Hero = (() => {
     bone.add(m); return m;
   }
 
+  /* Многие "готовые" FBX-шмотки, купленные на маркетплейсах, на самом
+     деле — это целый персонаж (тело, глаза, зубы + сама вещь), да ещё
+     и в сантиметрах, а не в метрах сцены (рост ~175 вместо ~1.7-2).
+     Эта функция: 1) оставляет только меши, похожие на нужный предмет
+     по имени, выпиливая тело/глаза/зубы; 2) считает bounding box
+     оставшегося и сама подгоняет scale/position под слот, вместо
+     захардкоженных magic-чисел, которые были рассчитаны на "чистый"
+     ассет и ломались на составных FBX. */
+  function fitClothesFBX(fbx, {keepRe = /skirt|pleat|dress|skort/i, targetHeight = .42, forward = .06} = {}){
+    const meshes = [];
+    fbx.traverse(c => { if (c.isMesh) meshes.push(c) });
+    console.log("[fitClothesFBX] meshes in file:", meshes.map(m => m.name));
+    const keep = meshes.filter(m => keepRe.test(m.name));
+    console.log("[fitClothesFBX] kept (matched keepRe):", keep.map(m => m.name));
+    if (keep.length && keep.length < meshes.length){
+      meshes.filter(m => !keepRe.test(m.name)).forEach(m => {
+        m.visible = false;
+        if (m.parent) m.parent.remove(m);
+        m.geometry?.dispose?.();
+        (Array.isArray(m.material) ? m.material : [m.material]).forEach(mt => mt?.dispose?.());
+      });
+    } else if (!keep.length){
+      console.warn("[fitClothesFBX] ни один меш не совпал с keepRe — оставляю всё как есть (может показать лишнее/тело).");
+    }
+    const box = new THREE.Box3().setFromObject(fbx);
+    const size = new THREE.Vector3(); box.getSize(size);
+    console.log("[fitClothesFBX] bbox size:", size, "isFinite:", isFinite(size.y));
+    if (size.y > 0 && isFinite(size.y)){
+      const center = new THREE.Vector3(); box.getCenter(center);
+      const scale = targetHeight / size.y;
+      fbx.scale.setScalar(scale);
+      fbx.position.set(-center.x*scale, -box.max.y*scale, -center.z*scale + forward);
+      console.log("[fitClothesFBX] applied scale:", scale, "position:", fbx.position);
+    } else {
+      console.warn("[fitClothesFBX] bbox некорректный (пустой/нулевой) — scale/position НЕ применены, объект остался в исходном FBX-масштабе (может быть огромным/невидимым).");
+    }
+    return fbx;
+  }
+
   /* ---------- процедурная сборка (как было) ---------- */
   function build(gender){
     const g = gender === "f";
@@ -172,9 +211,8 @@ window.Hero = (() => {
         try {
           const mesh = await new Promise((res, rej) =>
             new THREE.FBXLoader().load(url, res, undefined, rej));
-          mesh.scale.setScalar(0.5);
-          mesh.position.set(0, 0.2, 0.3);
           mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
+          fitClothesFBX(mesh);
           bone.add(mesh);
           const eq = GS?.data?.S?.equipped;
           mesh.visible = !!eq?.[slot];
@@ -205,7 +243,7 @@ window.Hero = (() => {
           if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
             this._clothesFBX.skirt.mesh.visible = true;
           else if (!this._clothesFBX.skirt)
-            this._loadClothesFBX("skirt", "/static/models/Skirt.fbx", skirtSlot);
+            this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", skirtSlot);
         } else if (this._clothesFBX.skirt?.mesh) {
           this._clothesFBX.skirt.mesh.visible = false;
         }
@@ -338,9 +376,8 @@ window.Hero = (() => {
               try {
                 const mesh = await new Promise((res, rej) =>
                   new THREE.FBXLoader().load(url, res, undefined, rej));
-                mesh.scale.setScalar(0.5);
-                mesh.position.set(0, 0.2, 0.3);
                 mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
+                fitClothesFBX(mesh);
                 bone.add(mesh);
                 const eq = GS?.data?.S?.equipped;
                 mesh.visible = !!eq?.[slot];
@@ -371,7 +408,7 @@ window.Hero = (() => {
                 if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
                   this._clothesFBX.skirt.mesh.visible = true;
                 else if (!this._clothesFBX.skirt)
-                  this._loadClothesFBX("skirt", "/static/models/Skirt.fbx", bones.skirtSlot);
+                  this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", bones.skirtSlot);
               } else if (this._clothesFBX.skirt?.mesh) {
                 this._clothesFBX.skirt.mesh.visible = false;
               }
