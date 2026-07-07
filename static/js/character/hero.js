@@ -40,9 +40,9 @@ window.Hero = (() => {
   function fitClothesFBX(fbx, {keepRe = /skirt|pleat|dress|skort/i, targetHeight = .42, forward = .06} = {}){
     const meshes = [];
     fbx.traverse(c => { if (c.isMesh) meshes.push(c) });
-    console.log("[fitClothesFBX] meshes in file:", meshes.map(m => m.name));
+    console.log("[fitClothesFBX] meshes in file: " + meshes.map(m => `"${m.name}"`).join(", "));
     const keep = meshes.filter(m => keepRe.test(m.name));
-    console.log("[fitClothesFBX] kept (matched keepRe):", keep.map(m => m.name));
+    console.log("[fitClothesFBX] kept (matched keepRe): " + keep.map(m => `"${m.name}"`).join(", "));
     if (keep.length && keep.length < meshes.length){
       meshes.filter(m => !keepRe.test(m.name)).forEach(m => {
         m.visible = false;
@@ -55,15 +55,31 @@ window.Hero = (() => {
     }
     const box = new THREE.Box3().setFromObject(fbx);
     const size = new THREE.Vector3(); box.getSize(size);
-    console.log("[fitClothesFBX] bbox size:", size, "isFinite:", isFinite(size.y));
+    const bmin = box.min, bmax = box.max;
+    console.log(`[fitClothesFBX] bbox min=(${bmin.x.toFixed(3)}, ${bmin.y.toFixed(3)}, ${bmin.z.toFixed(3)}) max=(${bmax.x.toFixed(3)}, ${bmax.y.toFixed(3)}, ${bmax.z.toFixed(3)}) size=(${size.x.toFixed(4)}, ${size.y.toFixed(4)}, ${size.z.toFixed(4)})`);
     if (size.y > 0 && isFinite(size.y)){
       const center = new THREE.Vector3(); box.getCenter(center);
       const scale = targetHeight / size.y;
       fbx.scale.setScalar(scale);
       fbx.position.set(-center.x*scale, -box.max.y*scale, -center.z*scale + forward);
-      console.log("[fitClothesFBX] applied scale:", scale, "position:", fbx.position);
+      console.log(`[fitClothesFBX] applied scale=${scale.toFixed(6)} position=(${fbx.position.x.toFixed(4)}, ${fbx.position.y.toFixed(4)}, ${fbx.position.z.toFixed(4)})`);
     } else {
       console.warn("[fitClothesFBX] bbox некорректный (пустой/нулевой) — scale/position НЕ применены, объект остался в исходном FBX-масштабе (может быть огромным/невидимым).");
+    }
+    /* DEBUG-режим: window.DEBUG_CLOTHES = true в консоли ДО того, как
+       наденешь вещь — перекрасит её в ярко-зелёный, уберёт зависимость
+       от текстур/света/фрустум-куллинга и заставит быть видимой всегда.
+       Если и так ничего не видно — дело не в материале/текстуре, а в
+       положении/масштабе или в том, что объект вообще не добавляется
+       на сцену. Если видно зелёное пятно — дело в оригинальном
+       материале (не хватает текстуры) либо оно просто криво стоит. */
+    if (window.DEBUG_CLOTHES){
+      const dbgMat = new THREE.MeshBasicMaterial({color:0x00ff44, wireframe:false, depthTest:false, side:THREE.DoubleSide});
+      fbx.traverse(c => {
+        if (c.isMesh){ c.material = dbgMat; c.frustumCulled = false; c.renderOrder = 999; c.visible = true }
+      });
+      fbx.visible = true;
+      console.log("[fitClothesFBX] DEBUG_CLOTHES включён — материал принудительно ярко-зелёный, всегда видим.");
     }
     return fbx;
   }
