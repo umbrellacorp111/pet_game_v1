@@ -68,6 +68,18 @@ window.Hero = (() => {
     return fbx;
   }
 
+  /* Грузит одёжный ассет по расширению: .glb/.gltf через GLTFLoader
+     (лёгкие, самодостаточные файлы — предпочтительный формат),
+     .fbx через старый FBXLoader (для обратной совместимости). */
+  function loadClothesAsset(url){
+    if (/\.(glb|gltf)$/i.test(url)){
+      return new Promise((res, rej) =>
+        new THREE.GLTFLoader().load(url, gltf => res(gltf.scene), undefined, rej));
+    }
+    return new Promise((res, rej) =>
+      new THREE.FBXLoader().load(url, res, undefined, rej));
+  }
+
   /* ---------- процедурная сборка (как было) ---------- */
   function build(gender){
     const g = gender === "f";
@@ -209,8 +221,7 @@ window.Hero = (() => {
         if (!bone || this._clothesFBX[slot]) return;
         this._clothesFBX[slot] = {loading: true};
         try {
-          const mesh = await new Promise((res, rej) =>
-            new THREE.FBXLoader().load(url, res, undefined, rej));
+          const mesh = await loadClothesAsset(url);
           mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
           fitClothesFBX(mesh);
           bone.add(mesh);
@@ -243,7 +254,7 @@ window.Hero = (() => {
           if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
             this._clothesFBX.skirt.mesh.visible = true;
           else if (!this._clothesFBX.skirt)
-            this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", skirtSlot);
+            this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.glb", skirtSlot);
         } else if (this._clothesFBX.skirt?.mesh) {
           this._clothesFBX.skirt.mesh.visible = false;
         }
@@ -374,8 +385,7 @@ window.Hero = (() => {
               if (!bone || this._clothesFBX[slot]) return;
               this._clothesFBX[slot] = {loading: true};
               try {
-                const mesh = await new Promise((res, rej) =>
-                  new THREE.FBXLoader().load(url, res, undefined, rej));
+                const mesh = await loadClothesAsset(url);
                 mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
                 fitClothesFBX(mesh);
                 bone.add(mesh);
@@ -408,7 +418,7 @@ window.Hero = (() => {
                 if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
                   this._clothesFBX.skirt.mesh.visible = true;
                 else if (!this._clothesFBX.skirt)
-                  this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.fbx", bones.skirtSlot);
+                  this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.glb", bones.skirtSlot);
               } else if (this._clothesFBX.skirt?.mesh) {
                 this._clothesFBX.skirt.mesh.visible = false;
               }
