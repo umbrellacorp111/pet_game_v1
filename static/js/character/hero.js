@@ -1,6 +1,6 @@
 /* character/hero.js — живой герой. Процедурный риг (по умолчанию)
    или загрузка FBX-модели через loadFBX(). */
-console.log("%c[hero.js] BUILD-MARKER v5-diagnostics", "background:#e0218a;color:#fff;font-size:14px;padding:2px 6px;border-radius:4px");
+console.log("%c[hero.js] BUILD-MARKER v6-bonefollower", "background:#e0218a;color:#fff;font-size:14px;padding:2px 6px;border-radius:4px");
 window.Hero = (() => {
   const SKIN = 0xffd9b8, DARK = 0x1b1033;
   const LEVEL_ACCENT = [0x8b6bff, 0x4fc3ff, 0xffa14d, 0x4ef0bc, 0xff7ec2, 0xffc93c];
@@ -91,6 +91,39 @@ window.Hero = (() => {
       console.log("[fitClothesFBX] DEBUG_CLOTHES включён — материал принудительно ярко-зелёный, всегда видим.");
     }
     return fbx;
+  }
+
+  /* Кости скинового FBX живут в своём (масштабированном) пространстве:
+     нода mixamorig:Hips стоит на y≈22 в мире, хотя видимое тело — рост ~2.
+     Скиннинг компенсирует это bind-матрицами, но всё, что добавлено к
+     кости как child, компенсацию не получает и улетает к «настоящей»
+     позиции ноды. Поэтому одежда крепится к корню героя, а её позиция
+     каждый кадр пересчитывается тем же преобразованием, каким скиннинг
+     ставит вершины: boneMatrixWorld × boneInverse (из Skeleton). */
+  function makeBoneFollower(root, bone, holder, yOff = 0){
+    let skel = null, idx = -1;
+    root.traverse(c => {
+      if (skel || !c.isSkinnedMesh || !c.skeleton) return;
+      const i = c.skeleton.bones.indexOf(bone);
+      if (i !== -1){ skel = c.skeleton; idx = i; }
+    });
+    const v = new THREE.Vector3(), m = new THREE.Matrix4();
+    if (!skel){
+      /* не скиновый риг — обычная мировая позиция кости */
+      return () => {
+        bone.getWorldPosition(v);
+        holder.parent.worldToLocal(v);
+        holder.position.set(v.x, v.y + yOff, v.z);
+      };
+    }
+    const bindWorld = new THREE.Matrix4().copy(skel.boneInverses[idx]).invert();
+    const pBind = new THREE.Vector3().setFromMatrixPosition(bindWorld);
+    return () => {
+      m.multiplyMatrices(bone.matrixWorld, skel.boneInverses[idx]);
+      v.copy(pBind).applyMatrix4(m);
+      holder.parent.worldToLocal(v);
+      holder.position.set(v.x, v.y + yOff, v.z);
+    };
   }
 
   /* Грузит одёжный ассет по расширению: .glb/.gltf через GLTFLoader
@@ -417,24 +450,33 @@ window.Hero = (() => {
             async _loadClothesFBX(slot, url, bone){
               if (!bone || this._clothesFBX[slot]) return;
               this._clothesFBX[slot] = {loading: true};
+              /* якорь — сама кость (slot-группа лежит внутри кости Hips) */
+              const anchor = bone.isBone ? bone : (bone.parent && bone.parent.isBone ? bone.parent : bone);
+              const holder = new THREE.Group();
+              fbx.add(holder);
+              const sync = makeBoneFollower(fbx, anchor, holder, -0.1);
+              sync();
               try {
                 const mesh = await loadClothesAsset(url);
                 mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
                 fitClothesFBX(mesh);
-                bone.add(mesh);
+                holder.add(mesh);
+                /* позицию держим свежей прямо перед отрисовкой */
+                mesh.traverse(c => { if (c.isMesh) c.onBeforeRender = sync });
                 const eq = GS?.S?.equipped;
                 mesh.visible = !!eq?.[slot];
                 this._clothesFBX[slot] = {mesh, loaded: true};
                 console.log(`[clothes] ${slot} loaded. GS.S=${!!GS?.S} equipped=${eq?.[slot]||"—"} → visible=${mesh.visible}`);
-                mesh.traverse(c => { if (c.isMesh) console.log(`[clothes] mesh "${c.name}" skinned=${!!c.isSkinnedMesh}`) });
                 setTimeout(() => {
-                  const wp = new THREE.Vector3(); bone.getWorldPosition(wp);
+                  sync();
+                  const wp = new THREE.Vector3(); holder.getWorldPosition(wp);
                   const bb = new THREE.Box3().setFromObject(mesh);
-                  console.log(`[clothes] ${slot} slotWorld=(${wp.x.toFixed(2)},${wp.y.toFixed(2)},${wp.z.toFixed(2)}) worldBox y=[${bb.min.y.toFixed(2)}..${bb.max.y.toFixed(2)}] x=[${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}] visible=${mesh.visible}`);
+                  console.log(`[clothes] ${slot} holderWorld=(${wp.x.toFixed(2)},${wp.y.toFixed(2)},${wp.z.toFixed(2)}) worldBox y=[${bb.min.y.toFixed(2)}..${bb.max.y.toFixed(2)}] x=[${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}] visible=${mesh.visible}`);
                 }, 1500);
               } catch(e){
                 console.warn("[Hero] clothes load fail", slot, e);
-                const fb = skirtFallback(bone);
+                const fb = skirtFallback(holder);
+                fb.onBeforeRender = sync;
                 this._clothesFBX[slot] = {mesh: fb, loaded: true};
                 const eq = GS?.S?.equipped;
                 fb.visible = !!eq?.[slot];
