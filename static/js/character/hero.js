@@ -37,7 +37,7 @@ window.Hero = (() => {
      оставшегося и сама подгоняет scale/position под слот, вместо
      захардкоженных magic-чисел, которые были рассчитаны на "чистый"
      ассет и ломались на составных FBX. */
-  function fitClothesFBX(fbx, {keepRe = /skirt|pleat|dress|skort/i, targetHeight = .42, forward = .06} = {}){
+  function fitClothesFBX(fbx, {keepRe = /skirt|pleat|dress|skort/i, targetHeight = .42, forward = .06, fitColor = 0xffc0d0} = {}){
     const meshes = [];
     fbx.traverse(c => { if (c.isMesh) meshes.push(c) });
     console.log("[fitClothesFBX] meshes in file: " + meshes.map(m => `"${m.name}"`).join(", "));
@@ -66,13 +66,21 @@ window.Hero = (() => {
     } else {
       console.warn("[fitClothesFBX] bbox некорректный (пустой/нулевой) — scale/position НЕ применены, объект остался в исходном FBX-масштабе (может быть огромным/невидимым).");
     }
-    /* DEBUG-режим: window.DEBUG_CLOTHES = true в консоли ДО того, как
-       наденешь вещь — перекрасит её в ярко-зелёный, уберёт зависимость
-       от текстур/света/фрустум-куллинга и заставит быть видимой всегда.
-       Если и так ничего не видно — дело не в материале/текстуре, а в
-       положении/масштабе или в том, что объект вообще не добавляется
-       на сцену. Если видно зелёное пятно — дело в оригинальном
-       материале (не хватает текстуры) либо оно просто криво стоит. */
+    /* Оригинальные материалы почти всегда битые: у бесплатных FBX-шек
+       текстуры — это пути на диске автора, которых физически нет
+       (два ассета подряд — 404 на текстуру). Плюс частая история с
+       конвертированными FBX — вывернутые нормали, из-за которых
+       материал с default side:FrontSide не рисуется с "той" стороны
+       камеры, хотя объект стоит на своём месте. Чтобы не гадать и не
+       чинить это на каждом новом ассете заново — материал вещи всегда
+       заменяется на простой сплошной цвет, видимый с обеих сторон. */
+    fbx.traverse(c => {
+      if (c.isMesh){
+        c.material = new THREE.MeshStandardMaterial({
+          color: fitColor, roughness:.75, metalness:.05, side: THREE.DoubleSide});
+        c.frustumCulled = false;
+      }
+    });
     if (window.DEBUG_CLOTHES){
       const dbgMat = new THREE.MeshBasicMaterial({color:0x00ff44, wireframe:false, depthTest:false, side:THREE.DoubleSide});
       fbx.traverse(c => {
