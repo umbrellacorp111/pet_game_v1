@@ -211,6 +211,11 @@ window.Hero = (() => {
          точкой бёдер, но не крутилась вместе с телом — «висела в воздухе».
          Теперь берём и позицию, и поворот (decompose), а масштаб сустава
          игнорируем: у меша уже свой масштаб из fitClothesFBX. */
+      /* bind-позиция сустава в его собственном пространстве — нужна, чтобы
+         получить ПОЗИЦИЮ сустава (m — это скиннинг-трансформация вершин;
+         её трансляция ≠ позиция сустава, позиция = m, применённая к pBind). */
+      const pBind = new THREE.Vector3().setFromMatrixPosition(
+        m.copy(skel.boneInverses[idx]).invert());
       const _pos = new THREE.Vector3(), _quat = new THREE.Quaternion(), _scl = new THREE.Vector3();
       const _pm = new THREE.Matrix4();
       const _pPos = new THREE.Vector3(), _pQuat = new THREE.Quaternion(), _pScl = new THREE.Vector3();
@@ -224,7 +229,8 @@ window.Hero = (() => {
         m.multiplyMatrices(jbone.matrixWorld, skel.boneInverses[idx]);
         m.premultiply(sm.bindMatrixInverse);
         m.premultiply(sm.matrixWorld);
-        m.decompose(_pos, _quat, _scl);          // мировая поза сустава
+        m.decompose(_pos, _quat, _scl);          // _quat — верный поворот сустава
+        _pos.copy(pBind).applyMatrix4(m);        // _pos — ПОЗИЦИЯ сустава в мире
         if (!logged){ logged = true;
           console.log(`[boneFollower] visual hips world=(${_pos.x.toFixed(2)},${_pos.y.toFixed(2)},${_pos.z.toFixed(2)})`); }
         const par = holder.parent;
