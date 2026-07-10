@@ -65,10 +65,30 @@ window.Anim = (() => {
       {at:0,pose:{pelvis:[0,0,.07], spine:[0,0,-.05]}},{at:.9,pose:{pelvis:[0,0,-.07], spine:[0,0,.05]}},{at:1.5,pose:{}}]},
     adjust:    {dur:1.6, prio:1, steps:[
       {at:0,pose:{elL:[-1.8,0,0], shL:[-.4,0,.3]}},{at:1.0,pose:{}}]},
-    sigh:      {dur:2.0, prio:1, steps:[
-      {at:0,pose:{spine:[.12,0,0], head:[.15,0,0]}, snd:"vSad"},{at:1.3,pose:{}}]},
-    footTap:   {dur:1.6, prio:1, steps:[
-      {at:0,pose:{thR:[-.25,0,0]}},{at:.3,pose:{}},{at:.6,pose:{thR:[-.25,0,0]}},{at:.9,pose:{}}]},
+    sigh:      {dur:2.4, prio:1, steps:[
+      {at:0,  pose:{spine:[.08,0,0], head:[.12,0,0], shL:[.05,0,.1], shR:[.05,0,-.1]}, snd:"vSad"},
+      {at:.8, pose:{spine:[.16,0,0], head:[.2,0,0]}},
+      {at:1.6,pose:{}}]},
+    footTap:   {dur:2.0, prio:1, steps:[
+      {at:0,pose:{thR:[-.28,0,0], knR:[.12,0,0]}},
+      {at:.3,pose:{}},
+      {at:.6,pose:{thR:[-.28,0,0], knR:[.12,0,0]}},
+      {at:.9,pose:{}},
+      {at:1.2,pose:{thR:[-.28,0,0], knR:[.12,0,0]}},
+      {at:1.5,pose:{}}]},
+    fixHair:   {dur:2.2, prio:1, steps:[
+      {at:0,  pose:{shL:[-.5,0,1.4], elL:[-1.6,0,.4], head:[0,.2,.1]}},
+      {at:.5, pose:{shL:[-.4,0,1.6], elL:[-1.4,0,.5], head:[0,.15,.05]}},
+      {at:1.2,pose:{shL:[-.3,0,1.2], elL:[-1.1,0,.2], head:[0,.1,0]}},
+      {at:1.8,pose:{}}]},
+    crossArms: {dur:3.5, prio:1, hold:false, steps:[
+      {at:0,  pose:{shL:[-.3,0,-.6], shR:[-.3,0,.6], elL:[-1.5,0,-.4], elR:[-1.5,0,.4], spine:[.05,0,0]}},
+      {at:2.8,pose:{}}]},
+    glance:    {dur:2.0, prio:1, steps:[
+      {at:0,  pose:{head:[.05,.55,.06]}},
+      {at:.6, pose:{head:[.05,.6,.04]}},
+      {at:1.2,pose:{head:[.04,.3,.03]}},
+      {at:1.7,pose:{}}]},
     laugh:     {dur:1.4, prio:3, steps:[
       {at:0,pose:{head:[-.2,0,0], spine:[-.06,0,0]}, face:{open:1}, snd:"vLaugh", fx:["spark",4]},
       {at:.3,pose:{head:[-.1,0,.1], spine:[.04,0,0]}},
@@ -183,7 +203,8 @@ window.Anim = (() => {
   /* ================= IDLE / AFK (автономная жизнь) ================= */
   const IDLE_POOL = [
     ["lookAround",3],["shiftWeight",3],["tiltHead",2],["adjust",2],
-    ["stretch",1.4],["footTap",2],["sigh",1],["nod",1.4],["wave",.4],
+    ["stretch",1.5],["footTap",2],["sigh",1.2],["nod",1.4],["wave",.4],
+    ["fixHair",1.8],["crossArms",1.5],["glance",2.5],
   ];
   let idleNext = 2.5, lastIdle = "", lastInput = 0, afkStage = 0, sleepMode = false;
   Bus.on("input:any", ()=>{ lastInput = 0; dancePhase = "wait"; danceTimer = 0; dancePlayTimer = 0;
@@ -335,12 +356,17 @@ window.Anim = (() => {
   let jumpT = -1, spinT = -1, auraAcc = 0;
   function tick(dt, t){
     if (!H) return;
-    /* лёгкая жизнь героев сцены выбора */
+    /* лёгкая жизнь героев сцены выбора — тоже с дыханием и весом */
     for (const s of simple){
       const b = s.hero.bones;
-      b.spine.rotation.x = s.hero.rest.spine.x + Math.sin(t*2+s.ph)*.02;
-      b.head.rotation.y = s.hero.rest.head.y + Math.sin(t*.7+s.ph)*.1;
-      b.root.position.y = Math.sin(t*2.2+s.ph)*.02;
+      const brS = Math.sin(t*1.35+s.ph)*.018 + Math.sin(t*2.67+s.ph+.8)*.005;
+      b.spine.rotation.x = s.hero.rest.spine.x + brS;
+      b.spine.rotation.z = s.hero.rest.spine.z + Math.sin(t*.28+s.ph+1.2)*.018;
+      b.head.rotation.y  = s.hero.rest.head.y  + Math.sin(t*.7+s.ph)*.1;
+      b.head.rotation.x  = s.hero.rest.head.x  + Math.sin(t*.43+s.ph*.7)*.03;
+      if (b.shL && s.hero.rest.shL) b.shL.rotation.x = s.hero.rest.shL.x - brS*.3;
+      if (b.shR && s.hero.rest.shR) b.shR.rotation.x = s.hero.rest.shR.x - brS*.3;
+      b.root.position.y = Math.sin(t*1.35+s.ph)*.018;
       const lid = (Math.sin(t*1.3+s.ph*3) > .97) ? 1 : 0;
       s.lid += (lid - s.lid)*dt*14;
       const lv = .12 + s.lid;
@@ -406,6 +432,9 @@ window.Anim = (() => {
     const k = 1 - Math.pow(.002, dt*blend/6);
     for (const bk in H.bones){
       if (bk === "root" || /Slot$/.test(bk)) continue;   // все *Slot — якоря одежды, позой не трогаем
+      /* VRM: кости рук позой не трогаем — их оси не совпадают с процедурными
+         жестами, любой мах выворачивает руку. Держим их в A-позе (rest). */
+      if (H.isVRM && (bk === "shL" || bk === "shR" || bk === "elL" || bk === "elR")) continue;
       const b = H.bones[bk], r = H.rest[bk];
       const tg = tgt[bk] || [0,0,0];
       const o = off[bk] = off[bk] || {x:0,y:0,z:0};
@@ -414,10 +443,34 @@ window.Anim = (() => {
     }
     posY += (posYT - posY)*k;
 
-    /* дыхание + вес тела */
-    const br = Math.sin(t*2.1)*.018;
+    /* ---- живое тело: дыхание, вес, вторичное движение ---- */
+    /* дыхание: два слоя с иррациональным соотношением → неравномерность.
+       t*1.35 ≈ 0.215 Hz = 12.9 вдохов/мин — физиологично для спокойного стояния */
+    const bA = Math.sin(t*1.35),       bA2 = Math.sin(t*2.67 + .8);  // грудной
+    const br = bA*.02 + bA2*.006;      // суммарный изгиб корпуса
     H.bones.spine.rotation.x += br;
-    H.bones.root.position.y = posY + (sleepMode ? Math.sin(t*1.1)*.015 : Math.sin(t*2.1)*.02);
+    /* Движения рук только для процедурного рига: у VRM/FBX другие оси
+       костей, размашистые повороты рук выворачивают их — выглядит багом.
+       Для таких моделей руки в idle держим спокойно. */
+    if (!H.isVRM){
+      /* плечи следуют за грудью при дыхании (вниз на вдохе, вверх на выдохе) */
+      if (H.bones.shL) H.bones.shL.rotation.x += -br * .35;
+      if (H.bones.shR) H.bones.shR.rotation.x += -br * .35;
+      /* предплечья — secondary motion от дыхания (маленький swing) */
+      if (H.bones.elL) H.bones.elL.rotation.z += Math.sin(t*1.35 + .55)*.016;
+      if (H.bones.elR) H.bones.elR.rotation.z += Math.sin(t*1.35 + 1.3)*.016;
+    }
+    /* перенос веса: таз медленно плывёт между ног (8-11 с цикл) */
+    const ws = Math.sin(t*.28)*.024 + Math.sin(t*.19 + 1.5)*.011;
+    if (H.bones.pelvis) H.bones.pelvis.rotation.z += ws;
+    H.bones.spine.rotation.z -= ws * .45;   // позвоночник компенсирует
+    /* micro-drift головы: два медленных иррациональных синуса → «живой взгляд» */
+    const hdX = Math.sin(t*.43 + .3)*.007 + Math.sin(t*.71)*.004;
+    const hdY = Math.sin(t*.37 + 1.8)*.009 + Math.sin(t*.61 + .9)*.005;
+    H.bones.head.rotation.x += hdX;
+    H.bones.head.rotation.y += hdY;
+    /* вертикальный боб совпадает с ритмом дыхания */
+    H.bones.root.position.y = posY + (sleepMode ? Math.sin(t*1.1)*.014 : bA*.018 + bA2*.005);
 
     /* хвост волос — secondary motion */
     if (H.bones.pony){
