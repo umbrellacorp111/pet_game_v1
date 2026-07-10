@@ -709,5 +709,108 @@ window.Hero = (() => {
     });
   }
 
-  return { build, loadFBX };
+  /* ---------- загрузка VRM (VRoid Studio) ----------
+     VRM 0.0 = glTF 2.0 со скиннингом, грузится штатным GLTFLoader.
+     Одежда заскинена на общий скелет → гнётся с телом, клиппинга нет.
+     Кости VRoid (J_Bip_*) сопоставляем логическим именам движка, чтобы
+     работал существующий процедурный аниматор. Эти константы можно
+     подкрутить по скриншоту (масштаб/разворот/опускание рук). */
+  const VRM_SCALE  = 1.15;      // VRoid ~1.5 м → под масштаб сцены (~1.7 ед.)
+  const VRM_FACE_Y = Math.PI;   // разворот лицом к камере (VRM0 смотрит от неё)
+  const VRM_ARM_DOWN = 1.15;    // опускание рук из T-позы в A-позу (рад)
+
+  async function loadVRM(url){
+    return new Promise((resolve) => {
+      new THREE.GLTFLoader().load(url, gltf => {
+        try {
+          const scene = gltf.scene;
+          scene.rotation.y = VRM_FACE_Y;
+          scene.scale.setScalar(VRM_SCALE);
+          scene.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false } });
+
+          const root = new THREE.Group();
+          root.add(scene);
+
+          /* VRM-карта: логическое имя кости → имя ноды в файле */
+          const hum = (gltf.parser?.json?.extensions?.VRM?.humanoid?.humanBones) || [];
+          const nodes = gltf.parser?.json?.nodes || [];
+          const nodeName = {};
+          hum.forEach(b => { if (nodes[b.node]) nodeName[b.bone] = nodes[b.node].name });
+          const findByName = n => { let r = null; scene.traverse(o => { if (!r && o.name === n) r = o }); return r; };
+          const boneOf = vrmName => { const nm = nodeName[vrmName]; return nm ? findByName(nm) : null; };
+
+          const bones = { root };
+          const MAP = {
+            pelvis:"hips", spine:"spine", chest:"chest", neck:"neck", head:"head",
+            thL:"leftUpperLeg", thR:"rightUpperLeg", knL:"leftLowerLeg", knR:"rightLowerLeg",
+            footL:"leftFoot", footR:"rightFoot",
+            shL:"leftUpperArm", shR:"rightUpperArm", elL:"leftLowerArm", elR:"rightLowerArm",
+          };
+          for (const k in MAP){ const b = boneOf(MAP[k]); if (b) bones[k] = b; }
+          /* заглушки для обязательных костей, чтобы аниматор не падал */
+          ["pelvis","spine","neck","head","thL","thR","knL","knR","shL","shR","elL","elR"]
+            .forEach(k => { if (!bones[k]){ const g = new THREE.Group(); root.add(g); bones[k] = g } });
+
+          /* опускаем руки из T-позы (VRoid: руки горизонтально вдоль ±X)
+             leftUpperArm указывает +X → ротация +Z опускает к -Y (вниз) */
+          if (bones.shL) bones.shL.rotation.z += VRM_ARM_DOWN;
+          if (bones.shR) bones.shR.rotation.z -= VRM_ARM_DOWN;
+
+          /* слоты для жёстких аксессуаров (шапки/очки как emoji-спрайты) */
+          const hatSlot = new THREE.Group(); hatSlot.position.set(0, .16, 0);
+          (bones.head || root).add(hatSlot); bones.hatSlot = hatSlot;
+          const faceSlot = new THREE.Group(); faceSlot.position.set(0, .04, .12);
+          (bones.head || root).add(faceSlot); bones.faceSlot = faceSlot;
+
+          const rest = {};
+          for (const k in bones) rest[k] = bones[k].rotation.clone();
+
+          /* невидимые тач-зоны для raycast (высоты под ~1.7-ед. модель) */
+          const zones = [];
+          const addZone = (name, x, y, z, r) => {
+            const mz = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6),
+              new THREE.MeshBasicMaterial({visible:false, depthWrite:false}));
+            mz.position.set(x, y, z); mz.userData.zone = name; root.add(mz); zones.push(mz);
+          };
+          addZone("head", 0, 1.55, 0, .22); addZone("face", 0, 1.55, .18, .14);
+          addZone("body", 0, 1.05, 0, .3);
+          addZone("armL", -.32, 1.1, 0, .15); addZone("armR", .32, 1.1, 0, .15);
+          addZone("legs", 0, .5, 0, .28);
+
+          const hero = {
+            group: root, bones, face: {}, zones, rest, gender: "f",
+            isFBX: false, isVRM: true, fxAura: "", _equipSprites: [], _clothesFBX: {},
+            setLevel(){},
+            _loadClothes3D(){}, _setClothesVisible(){}, _anchorBones(){ return [] },
+            setEquip(equipped, defOf){
+              this._equipSprites.forEach(s => s.parent && s.parent.remove(s));
+              this._equipSprites = [];
+              const put = (slotBone, id, scale) => {
+                const it = defOf(id); if (!it || !slotBone) return;
+                const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+                  map:Engine.emojiTex(it.emoji), transparent:true, depthWrite:false}));
+                sp.scale.setScalar(scale); slotBone.add(sp);
+                this._equipSprites.push(sp);
+              };
+              /* одежда (юбки/обувь и т.п.) вшита в VRM — тут только
+                 жёсткие аксессуары как иконки над головой */
+              if (equipped.hat) put(bones.hatSlot, equipped.hat, .5);
+              if (equipped.face) put(bones.faceSlot, equipped.face, .38);
+              this.fxAura = equipped.fx || "";
+            },
+          };
+          console.log("%c[hero.js] VRM loaded", "background:#4ef0bc;color:#000;padding:2px 6px");
+          resolve(hero);
+        } catch(e){
+          console.warn("[Hero] VRM parse fail, fallback to procedural", e);
+          resolve(build("f"));
+        }
+      }, undefined, err => {
+        console.warn("[Hero] VRM load failed, fallback to procedural", err);
+        resolve(build("f"));
+      });
+    });
+  }
+
+  return { build, loadFBX, loadVRM };
 })();
