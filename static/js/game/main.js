@@ -53,13 +53,15 @@ console.log("%c[main.js] BUILD-MARKER v4-clothes-materialfix", "background:#e021
     hero.loadAnim("/static/models/Dance.fbx", "dance");
   }
 
-  /* загрузка FBX-модели для female (если доступна) */
+  /* загрузка модели для female: VRoid VRM (одежда вшита в скелет,
+     клиппинга нет). Оживляет процедурный аниматор. Fallback внутри
+     loadVRM → процедурный герой, если файл не загрузился. */
   async function loadMainHero(gender){
-    if (gender === "f" && typeof THREE.FBXLoader !== "undefined"){
+    if (gender === "f" && typeof THREE.GLTFLoader !== "undefined"){
       try {
-        const h = await Hero.loadFBX("/static/models/female.fbx");
-        if (h) { loadFBXAnims(h); return h; }
-      } catch(e){ console.warn("[FBX] fallback to procedural", e) }
+        const h = await Hero.loadVRM("/static/models/heroine.vrm");
+        if (h) return h;
+      } catch(e){ console.warn("[VRM] fallback to procedural", e) }
     }
     const h = Hero.build(gender);
     return h;
@@ -90,20 +92,22 @@ console.log("%c[main.js] BUILD-MARKER v4-clothes-materialfix", "background:#e021
 
   /* ---------- 3. сцена выбора героя ---------- */
   async function characterSelect(){
-    // Загружаем FBX для женского превью
+    // Загружаем VRM для женского превью
     let hfFBX = null;
-    if (typeof THREE.FBXLoader !== "undefined"){
+    if (typeof THREE.GLTFLoader !== "undefined"){
       try {
-        hfFBX = await Hero.loadFBX("/static/models/female.fbx");
-        loadFBXAnims(hfFBX);
-        hfFBX.group.position.set(-1.05, 0, .35);
-        hfFBX.group.rotation.y = .35;
-        Engine.scene.add(hfFBX.group);
+        hfFBX = await Hero.loadVRM("/static/models/heroine.vrm");
+        if (hfFBX && !hfFBX.isVRM) hfFBX = null;   // loadVRM вернул fallback-процедурного
+        if (hfFBX){
+          hfFBX.group.position.set(-1.05, 0, .35);
+          hfFBX.group.rotation.y = .35;
+          Engine.scene.add(hfFBX.group);
+        }
       } catch(e){ /* fallback */ }
     }
     const hf = hfFBX || spawnHero("f", -1.05, .35);
     const hm = spawnHero("m",  1.05, -.35);
-    if (!hfFBX) Anim.simpleLife(hf, 0);
+    Anim.simpleLife(hf, 0);
     Anim.simpleLife(hm, 2.1);
     Engine.particles.spawn("glow", {x:0,y:1.3,z:0}, 8, 2.2);
     let chosen = "";

@@ -281,8 +281,8 @@ window.Anim = (() => {
   const faceCtl = {blinkIn:2.5, lids:0, open:0, openT:0, sacc:{x:0,y:0}, saccIn:1};
   function faceTick(dt, t){
     if (!H) return;
-    // FBX-модель не имеет процедурного лица — лицевая анимация отключена
-    if (H.isFBX) return;
+    // FBX/VRM-модели не имеют процедурного лица — лицевая анимация отключена
+    if (H.isFBX || !H.face || !H.face.lidL) return;
     const E = EMO[emoState.cur], I = emoState.intensity;
     const F = H.face;
     /* веки: эмоция + моргание */
@@ -344,7 +344,8 @@ window.Anim = (() => {
       const lid = (Math.sin(t*1.3+s.ph*3) > .97) ? 1 : 0;
       s.lid += (lid - s.lid)*dt*14;
       const lv = .12 + s.lid;
-      s.hero.face.lidL.scale.y = lv; s.hero.face.lidR.scale.y = lv;
+      /* у VRM/FBX нет процедурных век — моргание только для процедурного рига */
+      if (s.hero.face && s.hero.face.lidL){ s.hero.face.lidL.scale.y = lv; s.hero.face.lidR.scale.y = lv; }
     }
 
     /* FBX: обновляем AnimationMixer */
