@@ -5,6 +5,41 @@ window.Hero = (() => {
   const SKIN = 0xffd9b8, DARK = 0x1b1033;
   const LEVEL_ACCENT = [0x8b6bff, 0x4fc3ff, 0xffa14d, 0x4ef0bc, 0xff7ec2, 0xffc93c];
 
+  /* ===================== РЕЕСТР 3D-ОДЕЖДЫ =====================
+     Чтобы добавить новую 3D-вещь:
+       1) положи модель в static/models/clothes/ (лучше .glb/.gltf, можно .fbx);
+       2) добавь сюда строку: ключ = id предмета (как в SHOP/ARENA_SHOP в bot.py);
+       3) укажи url, anchor (куда крепить) и, если нужно, параметры подгонки.
+
+     anchor — логический якорь, каждый герой сам находит свою кость:
+       "head"   — макушка (шапки, шлемы, короны)
+       "face"   — перед лица (очки, маски)
+       "pelvis" — бёдра (юбки, штаны, пояс)
+       "spine"  — торс/грудь (куртки, плащи, броня)
+       "feet"   — обе стопы (обувь) — модель клонируется и зеркалится
+       "hands"  — обе кисти (перчатки) — модель клонируется и зеркалится
+       "back"   — спина (крылья, рюкзак, накидка)
+
+     Параметры подгонки (все опциональны):
+       keep       — regex: какие меши файла оставить (остальное = тело/мусор — выпилить)
+       height     — целевая высота вещи в метрах (авто-масштаб под неё)
+       color      — если задан, красим вещь в этот цвет (у бесплатных ассетов текстуры битые)
+       yOff/zOff  — доводка посадки по вертикали/вперёд-назад
+  */
+  const CLOTHES_3D = {
+    // юбка (уже была) — теперь просто строка реестра
+    skirt_pleated: {url:"/static/models/clothes/Skirt.glb", anchor:"pelvis",
+                    keep:/skirt|pleat|dress|skort/i, height:.42, color:0xffc0d0, zOff:.06},
+    // ПРИМЕРЫ (раскомментируй и положи файлы, чтобы включить):
+    // hat_crown:   {url:"/static/models/clothes/Crown.glb",  anchor:"head",  keep:/crown|hat|cap/i,   height:.22, color:0xffb300, yOff:.02},
+    // gl_cool:     {url:"/static/models/clothes/Glasses.glb", anchor:"face",  keep:/glass|shade|lens/i, height:.09, color:0x1b1033, zOff:.02},
+    // boots_1:     {url:"/static/models/clothes/Boots.glb",   anchor:"feet",  keep:/boot|shoe|foot/i,   height:.18, color:0x2e3350},
+    // gloves_1:    {url:"/static/models/clothes/Gloves.glb",  anchor:"hands", keep:/glove|hand|mitt/i,  height:.12, color:0x2e3350},
+    // jacket_1:    {url:"/static/models/clothes/Jacket.glb",  anchor:"spine", keep:/jacket|coat|top/i,  height:.5,  color:0xf2f4fa},
+    // wings_1:     {url:"/static/models/clothes/Wings.glb",   anchor:"back",  keep:/wing|cape/i,        height:.6,  color:0xffffff, zOff:-.12},
+  };
+  const has3D = id => !!CLOTHES_3D[id];
+
   const M = (color, rough=.6) => new THREE.MeshStandardMaterial({color, roughness:rough, metalness:.05});
 
   /* процедурная юбка — fallback, если FBX не загрузился */
@@ -38,7 +73,7 @@ window.Hero = (() => {
      оставшегося и сама подгоняет scale/position под слот, вместо
      захардкоженных magic-чисел, которые были рассчитаны на "чистый"
      ассет и ломались на составных FBX. */
-  function fitClothesFBX(fbx, {keepRe = /skirt|pleat|dress|skort/i, targetHeight = .42, forward = .06, fitColor = 0xffc0d0} = {}){
+  function fitClothesFBX(fbx, {keepRe = /skirt|pleat|dress|skort/i, targetHeight = .42, forward = .06, fitColor = 0xffc0d0, mode = "hang", up = 0} = {}){
     const meshes = [];
     fbx.traverse(c => { if (c.isMesh) meshes.push(c) });
     console.log("[fitClothesFBX] meshes in file: " + meshes.map(m => `"${m.name}"`).join(", "));
@@ -62,8 +97,15 @@ window.Hero = (() => {
       const center = new THREE.Vector3(); box.getCenter(center);
       const scale = targetHeight / size.y;
       fbx.scale.setScalar(scale);
-      fbx.position.set(-center.x*scale, -box.max.y*scale, -center.z*scale + forward);
-      console.log(`[fitClothesFBX] applied scale=${scale.toFixed(6)} position=(${fbx.position.x.toFixed(4)}, ${fbx.position.y.toFixed(4)}, ${fbx.position.z.toFixed(4)})`);
+      /* режим посадки по вертикали относительно точки крепления (y=0):
+           hang   — верх вещи у слота, свисает вниз (юбка, куртка, плащ)
+           sit    — низ вещи у слота, торчит вверх (шапка, обувь)
+           center — центр вещи в слоте (очки, перчатки) */
+      let yFit = -box.max.y*scale;                      // hang
+      if (mode === "sit")    yFit = -box.min.y*scale;
+      else if (mode === "center") yFit = -center.y*scale;
+      fbx.position.set(-center.x*scale, yFit + up, -center.z*scale + forward);
+      console.log(`[fitClothesFBX] mode=${mode} scale=${scale.toFixed(6)} position=(${fbx.position.x.toFixed(4)}, ${fbx.position.y.toFixed(4)}, ${fbx.position.z.toFixed(4)})`);
     } else {
       console.warn("[fitClothesFBX] bbox некорректный (пустой/нулевой) — scale/position НЕ применены, объект остался в исходном FBX-масштабе (может быть огромным/невидимым).");
     }
@@ -93,6 +135,40 @@ window.Hero = (() => {
     return fbx;
   }
 
+  /* Обёртка над fitClothesFBX: переводит конфиг из реестра CLOTHES_3D
+     (keep/height/color/zOff/mode) в параметры подгонки. Режим посадки
+     по умолчанию зависит от якоря: шапка/обувь встают низом на точку
+     (sit), очки/перчатки центрируются, остальное свисает вниз (hang). */
+  function fitClothes(src, cfg){
+    const defMode = {head:"sit", feet:"sit", face:"center", hands:"center"}[cfg.anchor] || "hang";
+    fitClothesFBX(src, {
+      keepRe: cfg.keep || /skirt|pleat|dress|skort|hat|cap|crown|glass|boot|shoe|glove|jacket|coat|wing|cape/i,
+      targetHeight: cfg.height || .42,
+      forward: cfg.zOff != null ? cfg.zOff : .06,
+      fitColor: cfg.color != null ? cfg.color : 0xffc0d0,
+      mode: cfg.mode || defMode,
+      up: cfg.yOff || 0,
+    });
+  }
+
+  /* Проходит по всей экипировке и для каждой вещи с 3D-моделью:
+     грузит (лениво), показывает надетую, прячет снятую. Работает для
+     обоих героев — они предоставляют _loadClothes3D / _setClothesVisible. */
+  function applyClothes3D(hero, equipped){
+    const onIds = new Set(Object.values(equipped || {}).filter(has3D));
+    // показать/догрузить надетые
+    onIds.forEach(id => {
+      const rec = hero._clothesFBX[id];
+      if (rec?.loaded) hero._setClothesVisible(id, true);
+      else if (!rec) hero._loadClothes3D(id);
+    });
+    // спрятать снятые, но уже загруженные
+    for (const id in hero._clothesFBX){
+      if (!onIds.has(id) && hero._clothesFBX[id]?.loaded)
+        hero._setClothesVisible(id, false);
+    }
+  }
+
   /* Кости скинового FBX живут в своём (масштабированном) пространстве:
      нода mixamorig:Hips стоит на y≈22 в мире, хотя видимое тело — рост ~2.
      Скиннинг компенсирует это bind-матрицами, но всё, что добавлено к
@@ -108,31 +184,61 @@ window.Hero = (() => {
        совпадать с инстансом внутри Skeleton скинового меша. */
     let sm = null, idx = -1;
     const want = (bone && bone.name ? bone.name : "hips").toLowerCase();
+    /* 1-й проход — точное имя кости; 2-й — фолбэк на hips (только если
+       нужную не нашли). Раньше `|| /hips$/` цеплял ВСЁ к бёдрам, из-за
+       чего одежда для головы/ног/рук уезжала на таз. */
     root.traverse(c => {
       if (sm || !c.isSkinnedMesh || !c.skeleton) return;
       const bs = c.skeleton.bones;
       for (let i = 0; i < bs.length; i++){
-        const n = (bs[i].name || "").toLowerCase();
-        if (n === want || /hips$/.test(n)){ sm = c; idx = i; break; }
+        if ((bs[i].name || "").toLowerCase() === want){ sm = c; idx = i; break; }
+      }
+    });
+    if (!sm) root.traverse(c => {
+      if (sm || !c.isSkinnedMesh || !c.skeleton) return;
+      const bs = c.skeleton.bones;
+      for (let i = 0; i < bs.length; i++){
+        if (/hips$/.test((bs[i].name || "").toLowerCase())){ sm = c; idx = i; break; }
       }
     });
     if (sm){
       const skel = sm.skeleton, jbone = skel.bones[idx];
       console.log(`[boneFollower] режим=skeleton mesh="${sm.name}" bone="${jbone.name}" idx=${idx}`);
-      const pBind = new THREE.Vector3().setFromMatrixPosition(
-        m.copy(skel.boneInverses[idx]).invert());
+      /* Полная визуальная матрица сустава — то же преобразование, каким
+         скиннинг ставит вершины на экране:
+           visual = meshWorld × bindMatrixInverse × (boneWorld × boneInverse)
+         Раньше отсюда бралась только ПОЗИЦИЯ, поэтому одежда следовала за
+         точкой бёдер, но не крутилась вместе с телом — «висела в воздухе».
+         Теперь берём и позицию, и поворот (decompose), а масштаб сустава
+         игнорируем: у меша уже свой масштаб из fitClothesFBX. */
+      const _pos = new THREE.Vector3(), _quat = new THREE.Quaternion(), _scl = new THREE.Vector3();
+      const _pm = new THREE.Matrix4();
+      const _pPos = new THREE.Vector3(), _pQuat = new THREE.Quaternion(), _pScl = new THREE.Vector3();
       let logged = false;
-      /* Полная цепочка из шейдера скиннинга three.js:
-         world = meshWorld × bindMatrixInverse × (boneWorld × boneInverse) × skinVertex */
       return () => {
+        /* свежие мировые матрицы: тик синхрона идёт ДО render(), где
+           scene.updateMatrixWorld() их пересчитает — иначе читали бы
+           позу прошлого кадра (дрожание/запаздывание). */
+        jbone.updateWorldMatrix(true, false);
+        sm.updateWorldMatrix(true, false);
         m.multiplyMatrices(jbone.matrixWorld, skel.boneInverses[idx]);
-        v.copy(pBind).applyMatrix4(m);          // сустав в skin-пространстве
-        v.applyMatrix4(sm.bindMatrixInverse);   // → локальное пространство меша
-        v.applyMatrix4(sm.matrixWorld);         // → мир, как рисуется тело
+        m.premultiply(sm.bindMatrixInverse);
+        m.premultiply(sm.matrixWorld);
+        m.decompose(_pos, _quat, _scl);          // мировая поза сустава
         if (!logged){ logged = true;
-          console.log(`[boneFollower] visual hips world=(${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)})`); }
-        holder.parent.worldToLocal(v);
-        holder.position.set(v.x, v.y + yOff, v.z);
+          console.log(`[boneFollower] visual hips world=(${_pos.x.toFixed(2)},${_pos.y.toFixed(2)},${_pos.z.toFixed(2)})`); }
+        const par = holder.parent;
+        par.updateWorldMatrix(true, false);
+        /* мир → локаль родителя holder: позицию — обратной матрицей,
+           поворот — обратным кватернионом родителя. decompose берём
+           отдельно, т.к. setFromRotationMatrix ломается на матрице с
+           масштабом (у FBX-корня масштаб не единичный). */
+        _pm.copy(par.matrixWorld).invert();
+        _pos.applyMatrix4(_pm);
+        par.matrixWorld.decompose(_pPos, _pQuat, _pScl);
+        _quat.premultiply(_pQuat.invert());
+        holder.position.set(_pos.x, _pos.y + yOff, _pos.z);
+        holder.quaternion.copy(_quat);
       };
     }
     /* Скелет с бедром не нашли — статичная посадка: бёдра ≈ 56% высоты
@@ -287,6 +393,13 @@ window.Hero = (() => {
     const hatSlot = piv(head, 0, .58, .02); bones.hatSlot = hatSlot;
     const faceSlot = piv(head, 0, .26, .36); bones.faceSlot = faceSlot;
     const skirtSlot = piv(pelvis, 0, -.24, 0); bones.skirtSlot = skirtSlot;
+    /* якоря для остальной 3D-одежды */
+    bones.spineSlot = piv(spine, 0, .35, .05);              // торс/грудь
+    bones.backSlot  = piv(spine, 0, .4, -.22);              // спина (крылья/накидка)
+    bones.footSlotL = piv(bones.knL, 0, -.44, .06);        // левая стопа
+    bones.footSlotR = piv(bones.knR, 0, -.44, .06);        // правая стопа
+    bones.handSlotL = piv(bones.elL, 0, -.31, 0);          // левая кисть
+    bones.handSlotR = piv(bones.elR, 0, -.31, 0);          // правая кисть
 
     const rest = {};
     for (const k in bones) rest[k] = bones[k].rotation.clone();
@@ -298,32 +411,50 @@ window.Hero = (() => {
         const idx = Math.min(LEVEL_ACCENT.length-1, Math.floor((level-1)/4));
         badge.material.color.setHex(LEVEL_ACCENT[idx]);
       },
-      async _loadClothesFBX(slot, url, bone){
-        if (!bone || this._clothesFBX[slot]) return;
-        this._clothesFBX[slot] = {loading: true};
-        try {
-          const mesh = await loadClothesAsset(url);
-          mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
-          fitClothesFBX(mesh);
-          bone.add(mesh);
-          const eq = GS?.S?.equipped;
-          mesh.visible = !!eq?.[slot];
-          this._clothesFBX[slot] = {mesh, loaded: true};
-          console.log(`[clothes] ${slot} loaded. GS.S=${!!GS?.S} equipped=${eq?.[slot]||"—"} → visible=${mesh.visible}`);
-          mesh.traverse(c => { if (c.isMesh) console.log(`[clothes] mesh "${c.name}" skinned=${!!c.isSkinnedMesh}`) });
-          setTimeout(() => {
-            const wp = new THREE.Vector3(); bone.getWorldPosition(wp);
-            const bb = new THREE.Box3().setFromObject(mesh);
-            console.log(`[clothes] ${slot} slotWorld=(${wp.x.toFixed(2)},${wp.y.toFixed(2)},${wp.z.toFixed(2)}) worldBox y=[${bb.min.y.toFixed(2)}..${bb.max.y.toFixed(2)}] x=[${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}] visible=${mesh.visible}`);
-          }, 1500);
-        } catch(e){
-          console.warn("[Hero] clothes load fail", slot, e);
-          const fb = skirtFallback(bone);
-          this._clothesFBX[slot] = {mesh: fb, loaded: true};
-          const eq = GS?.S?.equipped;
-          fb.visible = !!eq?.[slot];
-          Bus.emit("api:error", "3D-юбка (FBX) не загрузилась — нарисовал процедурную. Ошибка: "+e.message);
+      /* процедурный герой: якорь → массив костей (парные — две кости) */
+      _anchorBones(anchor){
+        switch(anchor){
+          case "head":   return [{bone:bones.hatSlot}];
+          case "face":   return [{bone:bones.faceSlot}];
+          case "pelvis": return [{bone:bones.skirtSlot}];
+          case "spine":  return [{bone:bones.spineSlot}];
+          case "back":   return [{bone:bones.backSlot}];
+          case "feet":   return [{bone:bones.footSlotL, mirror:true}, {bone:bones.footSlotR}];
+          case "hands":  return [{bone:bones.handSlotL, mirror:true}, {bone:bones.handSlotR}];
+          default:       return [{bone:bones.skirtSlot}];
         }
+      },
+      /* грузит 3D-вещь по id из реестра CLOTHES_3D и вешает на нужные кости */
+      async _loadClothes3D(id){
+        const cfg = CLOTHES_3D[id];
+        if (!cfg || this._clothesFBX[id]) return;
+        this._clothesFBX[id] = {loading: true, parts: []};
+        const anchors = this._anchorBones(cfg.anchor);
+        try {
+          const src = await loadClothesAsset(cfg.url);
+          fitClothes(src, cfg);
+          const eq = GS?.S?.equipped;
+          const on = eq && Object.values(eq).includes(id);
+          const parts = [];
+          anchors.forEach((a, i) => {
+            const mesh = i === 0 ? src : src.clone(true);
+            if (a.mirror) mesh.scale.x *= -1;      // зеркалим для второй ноги/руки
+            mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
+            mesh.visible = on;
+            a.bone.add(mesh);
+            parts.push(mesh);
+          });
+          this._clothesFBX[id] = {parts, loaded: true};
+          console.log(`[clothes] ${id} (proc) loaded on ${cfg.anchor} → visible=${on}`);
+        } catch(e){
+          console.warn("[Hero] clothes load fail", id, e);
+          this._clothesFBX[id] = {parts: [], loaded: true};
+          Bus.emit("api:error", `3D-вещь «${id}» не загрузилась. ${e.message}`);
+        }
+      },
+      _setClothesVisible(id, on){
+        const rec = this._clothesFBX[id];
+        if (rec?.parts) rec.parts.forEach(m => m.visible = on);
       },
       setEquip(equipped, defOf){
         this._equipSprites.forEach(s => s.parent && s.parent.remove(s));
@@ -335,18 +466,10 @@ window.Hero = (() => {
           sp.scale.setScalar(scale); slotBone.add(sp);
           this._equipSprites.push(sp);
         };
-        if (equipped.hat) put(hatSlot, equipped.hat, .5);
-        if (equipped.face) put(faceSlot, equipped.face, .38);
-        /* 3D-одежда */
-        console.log(`[setEquip] skirt=${equipped.skirt||"—"} entry=${this._clothesFBX.skirt ? (this._clothesFBX.skirt.loaded?"loaded":"loading") : "none"}`);
-        if (equipped.skirt){
-          if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
-            this._clothesFBX.skirt.mesh.visible = true;
-          else if (!this._clothesFBX.skirt)
-            this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.glb", skirtSlot);
-        } else if (this._clothesFBX.skirt?.mesh) {
-          this._clothesFBX.skirt.mesh.visible = false;
-        }
+        /* emoji-иконки для слотов без 3D-модели (совместимость) */
+        if (equipped.hat && !has3D(equipped.hat)) put(hatSlot, equipped.hat, .5);
+        if (equipped.face && !has3D(equipped.face)) put(faceSlot, equipped.face, .38);
+        applyClothes3D(this, equipped);
         this.fxAura = equipped.fx || "";
       },
     };
@@ -470,41 +593,70 @@ window.Hero = (() => {
             isFBX: true, mixer, _clips, _actions,
             playAnim, fxAura: "", _equipSprites: [], _clothesFBX: {},
             setLevel(){},
-            async _loadClothesFBX(slot, url, bone){
-              if (!bone || this._clothesFBX[slot]) return;
-              this._clothesFBX[slot] = {loading: true};
-              /* якорь — сама кость (slot-группа лежит внутри кости Hips) */
-              const anchor = bone.isBone ? bone : (bone.parent && bone.parent.isBone ? bone.parent : bone);
-              const holder = new THREE.Group();
-              fbx.add(holder);
-              const sync = makeBoneFollower(fbx, anchor, holder, -0.1);
-              sync();
-              try {
-                const mesh = await loadClothesAsset(url);
-                mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
-                fitClothesFBX(mesh);
-                holder.add(mesh);
-                /* позицию держим свежей прямо перед отрисовкой */
-                mesh.traverse(c => { if (c.isMesh) c.onBeforeRender = sync });
-                const eq = GS?.S?.equipped;
-                mesh.visible = !!eq?.[slot];
-                this._clothesFBX[slot] = {mesh, loaded: true};
-                console.log(`[clothes] ${slot} loaded. GS.S=${!!GS?.S} equipped=${eq?.[slot]||"—"} → visible=${mesh.visible}`);
-                setTimeout(() => {
-                  sync();
-                  const wp = new THREE.Vector3(); holder.getWorldPosition(wp);
-                  const bb = new THREE.Box3().setFromObject(mesh);
-                  console.log(`[clothes] ${slot} holderWorld=(${wp.x.toFixed(2)},${wp.y.toFixed(2)},${wp.z.toFixed(2)}) worldBox y=[${bb.min.y.toFixed(2)}..${bb.max.y.toFixed(2)}] x=[${bb.min.x.toFixed(2)}..${bb.max.x.toFixed(2)}] visible=${mesh.visible}`);
-                }, 1500);
-              } catch(e){
-                console.warn("[Hero] clothes load fail", slot, e);
-                const fb = skirtFallback(holder);
-                fb.onBeforeRender = sync;
-                this._clothesFBX[slot] = {mesh: fb, loaded: true};
-                const eq = GS?.S?.equipped;
-                fb.visible = !!eq?.[slot];
-          Bus.emit("api:error", "3D-юбка (FBX) не загрузилась — нарисовал процедурную. Ошибка: "+e.message);
+            /* FBX-герой: якорь → массив реальных костей Mixamo (парные —
+               две кости). Одежда крепится не к кости-ребёнку (её бы унесло
+               в масштабированное пространство скелета), а к holder-у на
+               корне, который каждый кадр повторяет визуальную позу кости. */
+            _anchorBones(anchor){
+              const B = bones;
+              switch(anchor){
+                case "head":   return [B.head].filter(Boolean);
+                case "face":   return [B.head].filter(Boolean);
+                case "pelvis": return [B.pelvis].filter(Boolean);
+                case "spine":  return [B.spine || B.pelvis].filter(Boolean);
+                case "back":   return [B.spine || B.pelvis].filter(Boolean);
+                case "feet":   return [B.footL, B.footR].filter(Boolean);
+                case "hands":  return [B.handL, B.handR].filter(Boolean);
+                default:       return [B.pelvis].filter(Boolean);
               }
+            },
+            async _loadClothes3D(id){
+              const cfg = CLOTHES_3D[id];
+              if (!cfg || this._clothesFBX[id]) return;
+              this._clothesFBX[id] = {loading: true, parts: []};
+              const anchorBones = this._anchorBones(cfg.anchor);
+              if (!anchorBones.length){ this._clothesFBX[id] = {parts: [], loaded: true}; return; }
+              /* holder на корне + follower за костью; синхрон — в тик движка
+                 (ДО render(), после mixer.update()), а не на onBeforeRender:
+                 иначе поза отстаёт на кадр и одежда дрожит/висит. */
+              const holders = anchorBones.map(b => {
+                const h = new THREE.Group(); fbx.add(h);
+                const sync = makeBoneFollower(fbx, b, h, -0.1);
+                sync();
+                return {h, sync};
+              });
+              const _syncTick = () => {
+                const rec = this._clothesFBX[id];
+                if (!rec?.parts?.length || !rec.parts[0].visible) return;
+                holders.forEach(o => o.sync());
+              };
+              Engine.onTick(_syncTick);
+              try {
+                const src = await loadClothesAsset(cfg.url);
+                fitClothes(src, cfg);
+                const eq = GS?.S?.equipped;
+                const on = eq && Object.values(eq).includes(id);
+                const parts = [];
+                holders.forEach((o, i) => {
+                  const mesh = i === 0 ? src : src.clone(true);
+                  /* парные вещи (обувь/перчатки) — вторую зеркалим по X */
+                  if (i > 0 && (cfg.anchor === "feet" || cfg.anchor === "hands")) mesh.scale.x *= -1;
+                  mesh.traverse(c => { if (c.isMesh){ c.castShadow = true; c.receiveShadow = true } });
+                  mesh.visible = on;
+                  o.h.add(mesh);
+                  parts.push(mesh);
+                });
+                this._clothesFBX[id] = {parts, loaded: true};
+                console.log(`[clothes] ${id} (fbx) loaded on ${cfg.anchor} → visible=${on}`);
+              } catch(e){
+                console.warn("[Hero] clothes load fail", id, e);
+                this._clothesFBX[id] = {parts: [], loaded: true};
+                Bus.emit("api:error", `3D-вещь «${id}» (FBX) не загрузилась. ${e.message}`);
+              }
+            },
+            _setClothesVisible(id, on){
+              const rec = this._clothesFBX[id];
+              if (rec?.parts) rec.parts.forEach(m => m.visible = on);
             },
             setEquip(equipped, defOf){
               this._equipSprites.forEach(s => s.parent && s.parent.remove(s));
@@ -516,18 +668,10 @@ window.Hero = (() => {
                 sp.scale.setScalar(scale); slotBone.add(sp);
                 this._equipSprites.push(sp);
               };
-              if (equipped.hat && bones.hatSlot) put(bones.hatSlot, equipped.hat, .6);
-              if (equipped.face && bones.faceSlot) put(bones.faceSlot, equipped.face, .45);
-              /* 3D-одежда */
-              console.log(`[setEquip] skirt=${equipped.skirt||"—"} entry=${this._clothesFBX.skirt ? (this._clothesFBX.skirt.loaded?"loaded":"loading") : "none"} slot=${!!bones.skirtSlot}`);
-              if (equipped.skirt && bones.skirtSlot){
-                if (this._clothesFBX.skirt?.loaded && this._clothesFBX.skirt.mesh)
-                  this._clothesFBX.skirt.mesh.visible = true;
-                else if (!this._clothesFBX.skirt)
-                  this._loadClothesFBX("skirt", "/static/models/clothes/Skirt.glb", bones.skirtSlot);
-              } else if (this._clothesFBX.skirt?.mesh) {
-                this._clothesFBX.skirt.mesh.visible = false;
-              }
+              /* emoji-иконки для слотов без 3D-модели (совместимость) */
+              if (equipped.hat && bones.hatSlot && !has3D(equipped.hat)) put(bones.hatSlot, equipped.hat, .6);
+              if (equipped.face && bones.faceSlot && !has3D(equipped.face)) put(bones.faceSlot, equipped.face, .45);
+              applyClothes3D(this, equipped);
               this.fxAura = equipped.fx || "";
             },
           };

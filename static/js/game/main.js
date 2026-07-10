@@ -188,9 +188,9 @@ console.log("%c[main.js] BUILD-MARKER v4-clothes-materialfix", "background:#e021
     Anim.attach(hero);
   }
   window.heroMain = hero;
-  /* предзагрузка 3D-одежды */
-  if (hero._loadClothesFBX && hero.bones.skirtSlot)
-    hero._loadClothesFBX("skirt", "/static/models/clothes/Skirt.glb", hero.bones.skirtSlot);
+  /* 3D-одежда грузится лениво в setEquip() по факту экипировки (шаг 5,
+     UI.render()). Отдельная предзагрузка не нужна — реестр CLOTHES_3D
+     сам решает, что подгрузить под текущую equipped. */
 
   GS.set("mode", "play");
   document.body.dataset.mode = "play";
