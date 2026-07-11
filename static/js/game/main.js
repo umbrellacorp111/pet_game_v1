@@ -67,6 +67,52 @@ console.log("%c[main.js] BUILD-MARKER v4-clothes-materialfix", "background:#e021
     opt("/static/models/Sleeping.fbx", "sleepPose");
   }
 
+  /* ================= НАРЯДЫ (слот outfit) =================
+     Каждый наряд — отдельная VRM-модель героини. Экипировка наряда в
+     магазине подменяет модель на сцене; позиция/поворот сохраняются,
+     анимации перезагружаются, шапки/ауры переприменяются. Загруженные
+     модели кэшируются — повторное переодевание мгновенное. */
+  window.OutfitMgr = {
+    cache: {}, current: "", busy: false,
+    async apply(outfitId, shop){
+      const def = outfitId && shop && shop[outfitId];
+      const vrmName = (def && def.vrm) || "heroine";
+      if (this.busy || vrmName === this.current) return;
+      const old = window.heroMain;
+      if (!old || !old.isVRM) return;   // наряды только для VRM-героини
+      this.busy = true;
+      try {
+        let h = this.cache[vrmName];
+        if (!h){
+          UI.toast && UI.toast("Примеряем наряд…");
+          h = await Hero.loadVRM("/static/models/" + vrmName + ".vrm");
+          if (!h || !h.isVRM) throw new Error("не загрузилась модель " + vrmName);
+          loadHeroAnims(h);
+          this.cache[vrmName] = h;
+        }
+        h.group.position.copy(old.group.position);
+        h.group.rotation.copy(old.group.rotation);
+        h.group.scale.copy(old.group.scale);
+        Engine.scene.remove(old.group);
+        Engine.scene.add(h.group);
+        window.heroMain = h;
+        Anim.attach(h);
+        this.current = vrmName;
+        if (GS.S){
+          h.setEquip(GS.S.equipped, id =>
+            (GS.S.shop && GS.S.shop[id]) || (GS.S.arena_shop && GS.S.arena_shop[id]) || null);
+          Anim.syncStats(GS.S);
+        }
+        Engine.particles.spawn("spark", {x:h.group.position.x, y:1.3, z:.4}, 12, .7);
+        Engine.cam.pulse(-.4, .6);
+        Sfx.play("sparkle");
+      } catch(e){
+        console.warn("[Outfit]", e);
+        UI.toast && UI.toast("Наряд не загрузился — проверь файл " + vrmName + ".vrm", true);
+      } finally { this.busy = false; }
+    },
+  };
+
   /* загрузка модели для female: VRoid VRM (одежда вшита в скелет,
      клиппинга нет). Оживляет процедурный аниматор. Fallback внутри
      loadVRM → процедурный герой, если файл не загрузился. */
@@ -207,6 +253,7 @@ console.log("%c[main.js] BUILD-MARKER v4-clothes-materialfix", "background:#e021
     Anim.attach(hero);
   }
   window.heroMain = hero;
+  if (hero.isVRM){ OutfitMgr.cache["heroine"] = hero; OutfitMgr.current = "heroine"; }
   /* 3D-одежда грузится лениво в setEquip() по факту экипировки (шаг 5,
      UI.render()). Отдельная предзагрузка не нужна — реестр CLOTHES_3D
      сам решает, что подгрузить под текущую equipped. */
@@ -226,7 +273,8 @@ console.log("%c[main.js] BUILD-MARKER v4-clothes-materialfix", "background:#e021
       if (e.target.closest("#arenaFight #afEnemy") && Arena.enemyActive) Arena.onTapEnemy();
       return;
     }
-    const hit = Engine.raycast(e.clientX, e.clientY, hero.zones);
+    const hm = window.heroMain || hero;   // после смены наряда hero устаревает
+    const hit = Engine.raycast(e.clientX, e.clientY, hm.zones);
     if (hit) Anim.touch(hit.object.userData.zone, hit.point);
   });
 

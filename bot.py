@@ -70,7 +70,13 @@ SHOP = {  # за монеты
     "bg_space":  {"name":"Космос","price":550,"emoji":"🌌","slot":"bg"},
     "bg_neon":   {"name":"Неон","price":800,"emoji":"🌈","slot":"bg"},
     "fx_sparkle":{"name":"Аура искр","price":900,"emoji":"✨","slot":"fx"},
-    "skirt_pleated":{"name":"Юбка","price":0,"emoji":"👗","slot":"skirt"},
+    # Наряды героини: каждый — отдельная VRM-модель static/models/<vrm>.vrm.
+    # Базовый вид (heroine.vrm) — когда слот outfit пуст.
+    "fit_shorts": {"name":"Шорты",      "price":0,    "emoji":"🩳","slot":"outfit","vrm":"heroine_shorts"},
+    "fit_pants1": {"name":"Брюки",      "price":350,  "emoji":"👖","slot":"outfit","vrm":"heroine_pantsv1"},
+    "fit_skirt1": {"name":"Юбка",       "price":500,  "emoji":"👗","slot":"outfit","vrm":"heroine_skirtv1"},
+    "fit_pants2": {"name":"Брюки Люкс", "price":800,  "emoji":"🧥","slot":"outfit","vrm":"heroine_pantsv2"},
+    "fit_skirt2": {"name":"Юбка Люкс",  "price":1200, "emoji":"💃","slot":"outfit","vrm":"heroine_skirtv2"},
 }
 
 ARENA_SHOP = {  # ТОЛЬКО за жетоны арены — статусная косметика

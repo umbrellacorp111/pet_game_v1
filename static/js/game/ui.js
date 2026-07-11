@@ -193,6 +193,7 @@ window.UI = (() => {
     /* мир (bg) от экипировки */
     document.body.dataset.world = s.equipped.bg || "";
     if (window.heroMain){
+      if (window.OutfitMgr) OutfitMgr.apply(s.equipped.outfit, s.shop);
       heroMain.setEquip(s.equipped, itemDef);
       Anim.syncStats(s);
     }
@@ -220,7 +221,7 @@ window.UI = (() => {
   }
   function renderShop(){
     const s = S(); if (!s) return;
-    const slotName = {hat:"Голова",face:"Лицо",bg:"Мир",fx:"Аура",skirt:"Одежда"};
+    const slotName = {hat:"Голова",face:"Лицо",bg:"Мир",fx:"Аура",skirt:"Одежда",outfit:"Наряд"};
     const row = (id,it,cur,kind) => {
       const owned = s.items.includes(id), eq = Object.values(s.equipped).includes(id);
       const r = rarity(id);
@@ -230,6 +231,8 @@ window.UI = (() => {
         <span class="side ${kind==='arena'?'tokPrice':''}">${eq?'НАДЕТО':owned?'надеть':it.price===0?'Бесплатно':it.price+' '+cur}</span></div>`;
     };
     const coinRows = Object.entries(s.shop)
+      .filter(([,it]) => !(it.slot === "outfit" &&
+        !(window.heroMain && window.heroMain.isVRM)))   // наряды — только для VRM-героини
       .filter(([,it]) => shopTab==="all" || shopTab===it.slot)
       .map(([id,it])=>row(id,it,'🪙','coin')).join("");
     const arenaRows = Object.entries(s.arena_shop)
