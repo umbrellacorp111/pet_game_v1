@@ -154,35 +154,10 @@ window.Anim = (() => {
       {at:1.8,pose:{}, face:{open:0}}]},
   };
 
-  /* ================= ТАНЕЦ (idle-цикл) ================= */
-  let dancePhase = "wait", danceTimer = 0, dancePlayTimer = 0;
-  const DANCE_DUR = 3;
-
-  function danceTick(dt){
-    if (!H || sleepMode || GS.room === "bed" || GS.mode !== "play") return;
-    danceTimer += dt;
-
-    // Ожидание — начинаем танец после 3с бездействия
-    if (dancePhase === "wait"){
-      if (lastInput >= 3){ doDance(); dancePhase = "dancing"; dancePlayTimer = 0; danceTimer = 0 }
-      return;
-    }
-
-    // Пользователь что-то нажал — сброс
-    if (lastInput < 3){ dancePhase = "wait"; danceTimer = 0; return }
-
-    // Фаза танца — считаем длительность
-    if (dancePhase === "dancing"){
-      dancePlayTimer += dt;
-      if (dancePlayTimer >= DANCE_DUR){ dancePhase = "pause"; danceTimer = 0 }
-      return;
-    }
-
-    // Пауза 5с между танцами
-    if (dancePhase === "pause" && danceTimer >= 5){
-      doDance(); dancePhase = "dancing"; dancePlayTimer = 0
-    }
-  }
+  /* ================= ТАНЕЦ (по тройному тапу) =================
+     Автотанца больше нет: танец запускается тройным тапом по герою
+     (см. touch), после клипа герой сам возвращается в спокойный idle. */
+  function danceTick(){ /* автотанец отключён */ }
 
   function doDance(){
     if (H && H.isFBX) H.playAnim("dance");
@@ -223,7 +198,7 @@ window.Anim = (() => {
     ["fixHair",1.8],["crossArms",1.5],["glance",2.5],
   ];
   let idleNext = 2.5, lastIdle = "", lastInput = 0, afkStage = 0, sleepMode = false;
-  Bus.on("input:any", ()=>{ lastInput = 0; dancePhase = "wait"; danceTimer = 0; dancePlayTimer = 0;
+  Bus.on("input:any", ()=>{ lastInput = 0;
     if (afkStage >= 2 && !sleepMode){ afkStage = 0; stopHold(); play("wake", true) }
     else afkStage = 0;
   });
@@ -257,6 +232,7 @@ window.Anim = (() => {
 
   /* ================= ТАЧ-ЗОНЫ и эскалация (док. 010) ================= */
   const zoneHits = {}; // zone -> {n, t}
+  let tapStreak = 0, tapLast = 0;   // тройной тап по герою → танец
   const ZONE_REACT = {
     head: ["headPat","laugh","tiltHead","escape"],
     face: ["laugh","headPat","pushAway","escape"],
@@ -278,6 +254,19 @@ window.Anim = (() => {
     if (!H) return;
     if (sleepMode){ Bus.emit("hero:sleep_touch"); return }
     stopHold(); afkStage = 0; lastInput = 0;
+    /* тройной тап (три касания подряд, пауза между ними < 0.9с) → танец */
+    const nowT = performance.now();
+    tapStreak = (nowT - tapLast < 900) ? tapStreak + 1 : 1;
+    tapLast = nowT;
+    if (tapStreak >= 3){
+      tapStreak = 0;
+      doDance();
+      setEmotion("excited", 1, 3);
+      Engine.particles.spawn("star", headPos(), 8, .6);
+      Engine.cam.pulse(-.4, .6); Engine.cam.shake(.05);
+      Sfx.play("sparkle"); hap("medium");
+      return;   // обычную реакцию на этот тап не играем
+    }
     const rec = zoneHits[zoneName] = zoneHits[zoneName] || {n:0, t:0};
     if (performance.now() - rec.t > 6000) rec.n = 0;
     rec.t = performance.now();
