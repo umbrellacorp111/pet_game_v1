@@ -520,18 +520,26 @@ window.Games = (() => {
   }
 
   /* ---------- Шахта Удачи (казино-слот) ----------
-     Вся математика на сервере (mine_spin): клиент только анимирует
-     присланный результат — поле, кирки, руду, сундуки, выплату. */
-  const MINE_MULT = {coal:.1, iron:.2, gold:.5, diam:1};
+     Механика: в инвентаре 3×5 спавнятся кирки пяти рангов (дерево, камень,
+     железо, золото, алмаз) и красные блокеры. В каждой колонке две одинаковые
+     кирки сливаются в ранг выше, суммарный урон колонки копает блоки поля.
+     Вся математика на сервере (mine_spin) — клиент только анимирует. */
+  const MINE_MULT = {coal:.05, iron:.15, gold:.4, diam:.9};
   const MINE_BETS = [10,25,50,100,200];
+  const MINE_DMG  = {w:1, s:2, i:3, g:4, d:5};
+  const MINE_UP   = {w:"s", s:"i", i:"g", g:"d"};
+  const MINE_TIER_WORD = {s:"", i:"ЖЕЛЕЗНАЯ КИРКА!", g:"ЗОЛОТАЯ КИРКА!", d:"АЛМАЗНАЯ КИРКА! 💎"};
   let MN = null;
 
-  function mineCell(c, r){ return $("mBoard").children[r*5 + c] }
+  const mineCell = (c, r) => $("mBoard").children[r*5 + c];
+  const mineSlot = (c, r) => $("mPicks").children[r*5 + c];
+  const pickHTML = t => `<span class="pk t-${t}">⛏</span><b class="dmg d-${t}">${MINE_DMG[t]}</b>`;
+  const fmtM = v => "x" + (+v.toFixed(2)).toString();
 
   function mineReset(){
-    /* пустое поле: 5×5 нетронутых блоков, кирки-«?», запертые сундуки */
-    $("mPicks").innerHTML = Array.from({length:5}, () =>
-      `<div class="mPick">❔</div>`).join("");
+    /* инвентарь 3×5, поле 5×5, запертые сундуки */
+    $("mPicks").innerHTML = Array.from({length:15}, () =>
+      `<div class="mSlot"></div>`).join("");
     $("mBoard").innerHTML = Array.from({length:25}, () =>
       `<div class="mCell hid">▦</div>`).join("");
     $("mChests").innerHTML = Array.from({length:5}, () =>
@@ -560,17 +568,41 @@ window.Games = (() => {
     setTimeout(() => el.remove(), 900);
   }
 
+  /* симуляция слияний колонки — тот же порядок, что на сервере:
+     младший ранг первым, сливаются два верхних слота, результат — в верхнем */
+  function mineSimMerges(colTokens){
+    const slots = colTokens.map(t => MINE_DMG[t] ? t : null);
+    const steps = [];
+    let again = true;
+    while (again){
+      again = false;
+      for (const t of "wsig"){
+        const idx = [];
+        slots.forEach((s, i) => { if (s === t) idx.push(i) });
+        if (idx.length >= 2){
+          const [a, b] = idx;
+          slots[a] = MINE_UP[t]; slots[b] = null;
+          steps.push({from:b, to:a, tier:MINE_UP[t]});
+          again = true; break;
+        }
+      }
+    }
+    return {steps, slots};
+  }
+
   /* ---- кирки и разрушение блоков ---- */
   const MINE_SHARD = {                       /* [цвет породы, цвет вкраплений] */
     dirt:["#9b6a3c","#7d5026"], stone:["#909298","#74767d"],
     coal:["#8f9099","#33343a"], iron:["#8f9099","#d8af93"],
     gold:["#8f9099","#f7d244"], diam:["#8f9099","#6fe3e1"],
   };
+  const MINE_TIER_GLOW = {w:"#b07a3e", s:"#9fa1a8", i:"#e8e9ee", g:"#ffd76a", d:"#7deeec"};
 
-  function mineSpawnAxe(c){
+  function mineSpawnAxe(c, tier, dmg){
     const cell = mineCell(c, 0); if (!cell) return;
     const axe = document.createElement("div");
-    axe.className = "mAxe"; axe.innerHTML = "<span>⛏</span>";
+    axe.className = "mAxe";
+    axe.innerHTML = `<span class="pk t-${tier}">⛏</span><b class="dmg d-${tier}">${dmg}</b>`;
     $("mBoard").appendChild(axe);
     axe.style.transform =
       `translate(${cell.offsetLeft + 3}px, ${cell.offsetTop - cell.offsetHeight*1.1}px)`;
@@ -597,12 +629,10 @@ window.Games = (() => {
   function mineShatter(cell, type){
     const [rock, spot] = MINE_SHARD[type] || MINE_SHARD.stone;
     cell.animate([{filter:"brightness(2.2)"},{filter:"brightness(1)"}], {duration:160});
-    /* ударное кольцо */
     const ring = document.createElement("i");
     ring.className = "mRing";
     cell.appendChild(ring);
     setTimeout(() => ring.remove(), 450);
-    /* осколки породы */
     const isOre = !!MINE_MULT[type];
     const n = isOre ? 12 : 8;
     for (let i = 0; i < n; i++){
@@ -617,7 +647,6 @@ window.Games = (() => {
       ], {duration:520 + Math.random()*280, easing:"cubic-bezier(.2,.7,.3,1)"})
         .onfinish = () => s.remove();
     }
-    /* пыль оседает вниз */
     for (let i = 0; i < 5; i++){
       const p = document.createElement("i");
       p.className = "mDust";
@@ -629,7 +658,6 @@ window.Games = (() => {
       ], {duration:650 + Math.random()*350, easing:"cubic-bezier(.4,0,.9,1)", delay: i*40})
         .onfinish = () => p.remove();
     }
-    /* руда: сноп искр цвета вкраплений */
     if (isOre) mineSparks(cell, spot, type === "diam" ? 12 : 8);
   }
 
@@ -649,8 +677,8 @@ window.Games = (() => {
     }
   }
 
-  /* крупное слово-выкрик над полем */
   function mineWord(text, cls){
+    if (!text) return;
     const old = document.querySelector(".mWord");
     if (old) old.remove();
     const w = document.createElement("div");
@@ -660,6 +688,33 @@ window.Games = (() => {
     setTimeout(() => w.remove(), 1200);
   }
 
+  /* анимация одного слияния в колонке */
+  function mineMergeStep(c, step){
+    const from = mineSlot(c, step.from), to = mineSlot(c, step.to);
+    if (!from || !to) return;
+    const box = $("mPicks");
+    const fly = document.createElement("div");
+    fly.className = "mFly";
+    fly.innerHTML = from.innerHTML;
+    box.appendChild(fly);
+    fly.style.transform = `translate(${from.offsetLeft}px, ${from.offsetTop}px)`;
+    from.innerHTML = ""; from.classList.remove("has");
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      fly.style.transform = `translate(${to.offsetLeft}px, ${to.offsetTop}px) scale(.6)`;
+      fly.style.opacity = ".4";
+    }));
+    setTimeout(() => {
+      fly.remove();
+      to.innerHTML = pickHTML(step.tier);
+      to.classList.add("has");
+      to.animate([{transform:"scale(1.45)",filter:"brightness(2)"},
+                  {transform:"scale(1)",filter:"brightness(1)"}], {duration:240});
+      mineSparks(to, MINE_TIER_GLOW[step.tier], step.tier === "d" ? 10 : 6);
+      mineWord(MINE_TIER_WORD[step.tier], step.tier === "d" ? "diam" : "gold");
+      Sfx.play(step.tier === "d" ? "sparkle" : "pop"); hap("light");
+    }, 300);
+  }
+
   async function mineSpin(){
     if (!MN || MN.busy) return;
     const d = await Api.call("mine_spin", {bet: MN.bet});
@@ -667,8 +722,9 @@ window.Games = (() => {
     MN.busy = true; mineRenderCtl();
     Sfx.play("reel");
     mineReset();
+    MN.axes = {};
 
-    /* 1. раскрываем поле */
+    /* 1. поле проявляется */
     d.board.forEach((col, c) => col.forEach((t, r) => {
       const cell = mineCell(c, r);
       setTimeout(() => {
@@ -677,28 +733,49 @@ window.Games = (() => {
       }, 80*r + 40*c);
     }));
 
-    /* 2. крутим кирки как барабаны слота */
-    const pickEls = [...$("mPicks").children];
-    const roll = setInterval(() => pickEls.forEach(el =>
-      el.innerHTML = `⛏<b>${1 + Math.random()*5|0}</b>`), 90);
-    const T0 = 1200;
-    setTimeout(() => {
-      clearInterval(roll);
-      pickEls.forEach((el, c) => { el.innerHTML = `⛏<b>${d.picks[c]}</b>`; el.classList.add("set") });
-      if (d.picks.some(p => p >= 5)) mineWord("МЕГА-КИРКА ⛏5!", "gold");
-      Sfx.play("tick"); hap("light");
-    }, T0);
+    /* 2. инвентарь крутится и оседает: кирки, блокеры, пустоты */
+    const slots = [...$("mPicks").children];
+    const tiers = "wsigd";
+    const roll = setInterval(() => slots.forEach(s =>
+      s.innerHTML = pickHTML(tiers[Math.random()*5|0])), 90);
+    const T0 = 1100;
+    slots.forEach((s, i) => setTimeout(() => {
+      if (!MN || MN.over) return;
+      const c = i % 5, r = (i / 5)|0;
+      const t = d.grid[c][r];
+      if (i === 0) clearInterval(roll);
+      s.classList.add("set");
+      if (MINE_DMG[t]){ s.innerHTML = pickHTML(t); s.classList.add("has") }
+      else if (t === "x"){ s.innerHTML = `<i class="blk"></i>`; s.classList.add("blocked") }
+      else s.innerHTML = "";
+      Sfx.play("tick");
+    }, T0 + i*55));
+    const TSet = T0 + 15*55 + 120;
 
-    /* 3. кирки падают на колонны и разбивают блоки */
-    let mult = 0, oreCount = 0;
-    const fmt = v => "x" + v.toFixed(1).replace(/\.0$/, "");
-    const STRIKE = 300, T1 = T0 + 450;      /* медленнее и плавнее */
-    let tEnd = T1;
-    MN.axes = {};
+    /* 3. слияния по колонкам */
+    let mergeEnd = TSet;
+    const finals = [];                      /* сильнейшая кирка колонки */
     for (let c = 0; c < 5; c++){
-      const base = T1 + c*260, power = d.picks[c];
-      setTimeout(() => { if (MN && !MN.over) mineSpawnAxe(c) }, base - 220);
-      for (let r = 0; r < power; r++){
+      const sim = mineSimMerges(d.grid[c]);
+      finals[c] = sim.slots.filter(Boolean)
+        .sort((a,b) => MINE_DMG[b] - MINE_DMG[a])[0] || null;
+      sim.steps.forEach((st, k) => {
+        const at = TSet + c*140 + k*380;
+        setTimeout(() => { if (MN && !MN.over) mineMergeStep(c, st) }, at);
+        mergeEnd = Math.max(mergeEnd, at + 420);
+      });
+    }
+
+    /* 4. кирки падают и разбивают блоки */
+    let mult = 0, oreCount = 0;
+    const STRIKE = 300, T1 = mergeEnd + 350;
+    let tEnd = T1;
+    for (let c = 0; c < 5; c++){
+      const digs = d.digs[c];
+      if (!digs || !finals[c]) { continue }
+      const base = T1 + c*260;
+      setTimeout(() => { if (MN && !MN.over) mineSpawnAxe(c, finals[c], d.digs[c]) }, base - 220);
+      for (let r = 0; r < digs; r++){
         const at = base + r*STRIKE;
         setTimeout(() => { if (MN && !MN.over) mineAxeMove(c, r) }, at - 200);
         setTimeout(() => { if (MN && !MN.over) mineAxeSwing(c) }, at - 90);
@@ -710,8 +787,8 @@ window.Games = (() => {
           if (MINE_MULT[type]){
             oreCount++;
             mult += MINE_MULT[type];
-            minePop(cell, "+x" + MINE_MULT[type], "ore");
-            $("mMult").textContent = fmt(mult);
+            minePop(cell, "+" + fmtM(MINE_MULT[type]), "ore");
+            $("mMult").textContent = fmtM(mult);
             Sfx.play("coin"); hap("light");
             if (type === "gold") mineWord("ЗОЛОТО!", "gold");
             if (type === "diam"){
@@ -723,17 +800,17 @@ window.Games = (() => {
           } else Sfx.play("hit");
         }, at);
       }
-      const done = base + power*STRIKE;
+      const done = base + digs*STRIKE;
       setTimeout(() => { if (MN && !MN.over) mineAxeRemove(c) }, done + 80);
       if (d.chests[c]) setTimeout(() => {
         if (!MN || MN.over) return;
         const ch = $("mChests").children[c];
         ch.textContent = "🪙"; ch.classList.add("open");
-        minePop(ch, "+x1", "ore");
+        minePop(ch, "+x0.5", "ore");
         mineSparks(ch, "#ffe27a", 10);
-        mineWord("СУНДУК! +x1", "gold");
-        mult += 1;
-        $("mMult").textContent = fmt(mult);
+        mineWord("СУНДУК! +x0.5", "gold");
+        mult += .5;
+        $("mMult").textContent = fmtM(mult);
         Sfx.play("sparkle"); hap("medium");
       }, done + 180);
       tEnd = Math.max(tEnd, done + (d.chests[c] ? 620 : 280));
@@ -744,7 +821,7 @@ window.Games = (() => {
       if (MN && !MN.over && oreCount >= 4) mineWord("РУДНАЯ ЖИЛА! ⛏", "diam");
     }, tEnd + 100);
 
-    /* 4. итог */
+    /* 5. итог */
     setTimeout(() => {
       if (!MN || MN.over) return;
       GS.set("S", d); UI.render();
@@ -764,7 +841,7 @@ window.Games = (() => {
         Sfx.play("bad");
       }
       MN.busy = false; mineRenderCtl();
-    }, tEnd + 250);
+    }, tEnd + 300);
   }
 
   function startMine(){

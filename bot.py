@@ -37,13 +37,17 @@ GAME_COOLDOWN = 40
 # ---- Шахта Удачи (казино-слот) ----
 MINE_BETS = (10, 25, 50, 100, 200)
 MINE_COOLDOWN = 3                       # секунд между спинами (анти-спам)
-# тип блока, вес выпадения, множитель ставки за добычу
-MINE_BLOCKS = [("dirt",49,0), ("stone",28,0), ("coal",10,.1),
-               ("iron",7,.2), ("gold",4,.5), ("diam",2,1.0)]
-# сила кирки (сколько блоков прокопает в колонке), вес выпадения
-MINE_POWERS = [(1,32), (2,30), (3,20), (4,13), (5,5)]
-MINE_CHEST_BONUS = 1.0                  # бонус за полностью прокопанную колонку
 MINE_COLS, MINE_ROWS = 5, 5
+MINE_INV_ROWS = 3                       # инвентарь кирок 3×5 над полем
+# слот инвентаря: пусто / блокер / кирка (дерево..алмаз), вес выпадения
+MINE_SPAWN = [("",44), ("x",10), ("w",22), ("s",12), ("i",7), ("g",4), ("d",1)]
+MINE_TIERS = {"w":1, "s":2, "i":3, "g":4, "d":5}      # урон кирки по рангу
+MINE_TIER_UP = {"w":"s", "s":"i", "i":"g", "g":"d"}   # 2 одинаковые → ранг выше
+# тип блока, вес выпадения, множитель ставки за добычу
+MINE_BLOCKS = [("dirt",50,0), ("stone",29,0), ("coal",10,.05),
+               ("iron",6,.15), ("gold",3,.4), ("diam",2,.9)]
+MINE_CHEST_BONUS = .5                   # колонна прокопана до дна
+# подобрано Монте-Карло: средний возврат ~93% ставки
 FISHING_MIN_SEC, FISHING_MAX_REWARD, FISHING_RATE = 15, 40, 1.8
 
 # ---- АРЕНА ----
@@ -542,8 +546,9 @@ async def api_fishing_finish(request):
     return ok(p, reward=reward, score=score, levelup=lvls, new_ach=check_achievements(p))
 
 async def api_mine_spin(request):
-    """Шахта Удачи: ставка списывается, сервер генерирует поле 5×5, кирки и
-    выплату. Ретёрн содержит всё для анимации на клиенте."""
+    """Шахта Удачи: в инвентаре 3×5 спавнятся кирки пяти рангов (и блокеры),
+    в каждой колонке две одинаковые сливаются в ранг выше, суммарный урон
+    колонки копает блоки. Вся математика здесь; клиент только анимирует."""
     p = await auth(request); body = request["body"]
     bet = int(body.get("bet", 0))
     if bet not in MINE_BETS: return err("Некорректная ставка")
@@ -552,20 +557,37 @@ async def api_mine_spin(request):
     if now - p.get("last_mine", 0) < MINE_COOLDOWN:
         return err("Шахта осыпается — подожди пару секунд")
 
-    types   = [b[0] for b in MINE_BLOCKS]
-    weights = [b[1] for b in MINE_BLOCKS]
-    mult_of = {b[0]: b[2] for b in MINE_BLOCKS}
-    board = [random.choices(types, weights=weights, k=MINE_ROWS)
-             for _ in range(MINE_COLS)]                      # board[col][row], сверху вниз
-    picks = random.choices([w[0] for w in MINE_POWERS],
-                           weights=[w[1] for w in MINE_POWERS], k=MINE_COLS)
-    mult, chests = 0.0, []
+    # 1. спавн инвентаря: grid[col][row] сверху вниз
+    tokens = [t[0] for t in MINE_SPAWN]
+    tw     = [t[1] for t in MINE_SPAWN]
+    grid = [random.choices(tokens, weights=tw, k=MINE_INV_ROWS)
+            for _ in range(MINE_COLS)]
+
+    # 2. слияния и урон колонок
+    digs, chests = [], []
     for c in range(MINE_COLS):
-        for r in range(picks[c]):
-            mult += mult_of[board[c][r]]
-        opened = picks[c] >= MINE_ROWS
-        chests.append(opened)
-        if opened: mult += MINE_CHEST_BONUS
+        picks = [t for t in grid[c] if t in MINE_TIERS]
+        merged = True
+        while merged:
+            merged = False
+            for t in "wsig":                      # алмаз выше не сливается
+                if picks.count(t) >= 2:
+                    picks.remove(t); picks.remove(t)
+                    picks.append(MINE_TIER_UP[t])
+                    merged = True
+                    break
+        dmg = sum(MINE_TIERS[t] for t in picks)
+        digs.append(min(MINE_ROWS, dmg))
+        chests.append(dmg >= MINE_ROWS)
+
+    # 3. поле и выплата
+    btypes  = [b[0] for b in MINE_BLOCKS]
+    bw      = [b[1] for b in MINE_BLOCKS]
+    mult_of = {b[0]: b[2] for b in MINE_BLOCKS}
+    board = [random.choices(btypes, weights=bw, k=MINE_ROWS)
+             for _ in range(MINE_COLS)]
+    mult = sum(mult_of[board[c][r]] for c in range(MINE_COLS) for r in range(digs[c]))
+    mult += MINE_CHEST_BONUS * sum(chests)
 
     payout = int(round(bet * mult))
     p["coins"] += payout - bet
@@ -573,7 +595,7 @@ async def api_mine_spin(request):
     p["best_mine"] = max(p.get("best_mine", 0), payout)
     save(p, "coins", "last_mine", "best_mine")
     if payout > bet: bump_quest(p, "earn", payout - bet)
-    return ok(p, board=board, picks=picks, chests=chests,
+    return ok(p, grid=grid, digs=digs, chests=chests, board=board,
               mult=round(mult, 2), payout=payout, bet=bet,
               new_ach=check_achievements(p))
 
