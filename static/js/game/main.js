@@ -43,14 +43,28 @@ console.log("%c[main.js] BUILD-MARKER v4-clothes-materialfix", "background:#e021
     return h;
   }
 
-  /* загрузка дополнительных FBX-анимаций */
-  function loadFBXAnims(hero){
-    if (!hero.isFBX) return;
-    hero.loadAnim("/static/models/Waving.fbx", "wave");
-    hero.loadAnim("/static/models/Laughing.fbx", "laugh");
-    hero.loadAnim("/static/models/Happy.fbx", "happy");
-    hero.loadAnim("/static/models/Kick.fbx", "kick");
-    hero.loadAnim("/static/models/Dance.fbx", "dance");
+  /* загрузка Mixamo-анимаций: для FBX-героя — как есть, для VRM — через
+     ретаргет (hero.loadAnim сам знает как). Файлы опциональны: чего нет
+     на диске — молча пропускаем. Хочешь больше движений — скачай клип с
+     mixamo.com (FBX, Without Skin), положи в static/models под нужным
+     именем, и он подхватится. */
+  function loadHeroAnims(hero){
+    if (!hero || !hero.loadAnim) return;
+    const opt = (u,n) => {
+      try { hero.loadAnim(u,n).catch(e => console.warn("[anim]", n, e && e.message || e)) }
+      catch(e){ console.warn("[anim]", n, e) }
+    };
+    if (hero.isVRM) opt("/static/models/Idle.fbx", "idle");  // Mixamo «Breathing Idle»
+    opt("/static/models/Waving.fbx",   "wave");
+    opt("/static/models/Laughing.fbx", "laugh");
+    opt("/static/models/Happy.fbx",    "happy");
+    opt("/static/models/Kick.fbx",     "kick");
+    opt("/static/models/Dance.fbx",    "dance");
+    /* необязательные (сработают, если положить файлы): */
+    opt("/static/models/Victory.fbx",  "victory");
+    opt("/static/models/Defeat.fbx",   "defeat");
+    opt("/static/models/Sitting.fbx",  "sit");
+    opt("/static/models/Sleeping.fbx", "sleepPose");
   }
 
   /* загрузка модели для female: VRoid VRM (одежда вшита в скелет,
@@ -60,7 +74,7 @@ console.log("%c[main.js] BUILD-MARKER v4-clothes-materialfix", "background:#e021
     if (gender === "f" && typeof THREE.GLTFLoader !== "undefined"){
       try {
         const h = await Hero.loadVRM("/static/models/heroine.vrm");
-        if (h) return h;
+        if (h){ loadHeroAnims(h); return h; }
       } catch(e){ console.warn("[VRM] fallback to procedural", e) }
     }
     const h = Hero.build(gender);
@@ -99,6 +113,7 @@ console.log("%c[main.js] BUILD-MARKER v4-clothes-materialfix", "background:#e021
         hfFBX = await Hero.loadVRM("/static/models/heroine.vrm");
         if (hfFBX && !hfFBX.isVRM) hfFBX = null;   // loadVRM вернул fallback-процедурного
         if (hfFBX){
+          loadHeroAnims(hfFBX);
           hfFBX.group.position.set(-1.05, 0, .35);
           hfFBX.group.rotation.y = .35;
           Engine.scene.add(hfFBX.group);

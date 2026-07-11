@@ -190,7 +190,20 @@ window.Anim = (() => {
   }
 
   function play(name, force){
-    const def = A[name]; if (!def || !H) return 0;
+    const def = A[name]; if (!H) return 0;
+    /* VRM: если под это действие загружен Mixamo-клип — играем его
+       (процедурная поза не нужна и на VRM выворачивает кости) */
+    if (H.isVRM && H._clips && H._clips[name] && H.playAnim){
+      if (!force && def && action && def.prio < action.prio && action.t < action.dur) return 0;
+      if (H.playAnim(name, .3, !!(def && def.hold))){
+        action = null; setPose({});           // процедурный таймлайн больше не нужен
+        if (def && def.jump) jumpT = 0;
+        if (def && def.spin) spinT = 0;
+        Bus.emit("anim:play", name);
+        return (def && def.dur) || H._clips[name].duration || 1;
+      }
+    }
+    if (!def) return 0;
     if (action && !force && def.prio < action.prio && action.t < action.dur) return 0;
     action = {name, def, t:0, dur:def.dur, prio:def.prio, stepIdx:0, hold:def.hold};
     if (def.jump) jumpT = 0;
@@ -198,7 +211,10 @@ window.Anim = (() => {
     Bus.emit("anim:play", name);
     return def.dur;
   }
-  function stopHold(){ if (action && action.hold){ action = null; setPose({}) } }
+  function stopHold(){
+    if (H && H.isVRM && H.holdLoop && H.stopAnim) H.stopAnim();
+    if (action && action.hold){ action = null; setPose({}) }
+  }
 
   /* ================= IDLE / AFK (автономная жизнь) ================= */
   const IDLE_POOL = [
@@ -226,6 +242,12 @@ window.Anim = (() => {
     if (action && action.t < action.dur) return;
     /* взвешенный выбор без повтора (анти-паттерн) */
     let pool = IDLE_POOL.filter(([n]) => n !== lastIdle);
+    /* VRM с idle-клипом: жизнь уже в клипе, из микро-действий оставляем
+       только те, под которые есть свои Mixamo-клипы */
+    if (H.isVRM && H._clips && H._clips.idle){
+      pool = pool.filter(([n]) => H._clips[n]);
+      if (!pool.length) return;
+    }
     if (emoState.cur === "sad" || emoState.cur === "tired")
       pool = pool.filter(([n]) => !["jumpJoy","wave","footTap"].includes(n));
     const total = pool.reduce((s,[,w])=>s+w,0);
@@ -269,6 +291,13 @@ window.Anim = (() => {
       let reaction = ZONE_REACT[zoneName][stage];
       if (emoNow === "sad" && stage < 2) reaction = "tiltHead";
       if (emoNow === "embarrassed") reaction = stage < 2 ? "escape" : "pushAway";
+      /* VRM: если под реакцию нет клипа, а idle-клип играет (процедурная
+         поза не видна) — подменяем на живой клип, чтобы отклик был виден */
+      if (H.isVRM && H._clips && H._clips.idle && !H._clips[reaction]){
+        reaction = (stage >= 2 && H._clips.laugh) ? "laugh"
+                 : H._clips.happy ? "happy"
+                 : H._clips.wave  ? "wave" : reaction;
+      }
       play(reaction, true);
     }
     /* эмоция от касания */
@@ -374,8 +403,8 @@ window.Anim = (() => {
       if (s.hero.face && s.hero.face.lidL){ s.hero.face.lidL.scale.y = lv; s.hero.face.lidR.scale.y = lv; }
     }
 
-    /* FBX: обновляем AnimationMixer */
-    if (H.isFBX && H.mixer){
+    /* FBX/VRM: обновляем AnimationMixer */
+    if ((H.isFBX || H.isVRM) && H.mixer){
       H.mixer.update(dt);
     }
 
@@ -407,6 +436,57 @@ window.Anim = (() => {
         if (auraAcc > 1.6){ auraAcc = 0; Engine.particles.spawn("zzz", headPos(), 1, .2) }
       }
       // Событие дня / UI-эффекты всё равно работают
+      danceTick(dt);
+      faceTick(dt, t);
+      idleTick(dt);
+      return;
+    }
+
+    /* VRM: пока играет Mixamo-клип, телом управляет AnimationMixer —
+       процедурные позы/дыхание не пишем, иначе они перезатрут кадры
+       клипа. Когда клип не играет (или клипы ещё не загрузились),
+       проваливаемся ниже в процедурный idle (дыхание/вес/голова). */
+    if (H.isVRM && H.mixer && H.mixerActive){
+      /* процедурный таймлайн позой не управляет, но звуки/частицы шагов
+         (еда, мытьё и т.п.) всё равно отыгрываем */
+      if (action){
+        action.t += dt;
+        const steps = action.def.steps;
+        while (action.stepIdx < steps.length && steps[action.stepIdx].at <= action.t){
+          const st = steps[action.stepIdx++];
+          if (st.snd) Sfx.play(st.snd);
+          if (st.fx) Engine.particles.spawn(st.fx[0], headPos(), st.fx[1], .5);
+        }
+        if (action.t >= action.dur && !action.hold) action = null;
+      }
+      /* смещение root от процедурных hold-поз плавно убираем */
+      posYT = 0;
+      posY += (0 - posY) * Math.min(1, dt*6);
+      H.bones.root.position.y = posY;
+      // Прыжок
+      if (jumpT >= 0){
+        jumpT += dt*2.2;
+        if (jumpT >= 1) jumpT = -1;
+        else H.bones.root.position.y += Math.sin(jumpT*Math.PI)*.55;
+      }
+      // Кручение (мытьё)
+      if (spinT >= 0){
+        spinT += dt*1.2;
+        if (spinT >= 1){ spinT = -1; H.bones.root.rotation.y = 0 }
+        else H.bones.root.rotation.y = Math.sin(spinT*Math.PI)*Math.PI*1.4;
+      }
+      // Аура
+      if (H.fxAura){
+        auraAcc += dt;
+        if (auraAcc > .7){ auraAcc = 0;
+          Engine.particles.spawn(H.fxAura === "fx_thunder" ? "bolt" : "spark",
+            {x:H.bones.root.position.x, y:1.4, z:.3}, 2, .8);
+        }
+      }
+      if (sleepMode){
+        auraAcc += dt;
+        if (auraAcc > 1.6){ auraAcc = 0; Engine.particles.spawn("zzz", headPos(), 1, .2) }
+      }
       danceTick(dt);
       faceTick(dt, t);
       idleTick(dt);

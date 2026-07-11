@@ -752,9 +752,77 @@ window.Hero = (() => {
             .forEach(k => { if (!bones[k]){ const g = new THREE.Group(); root.add(g); bones[k] = g } });
 
           /* опускаем руки из T-позы (VRoid: руки горизонтально вдоль ±X)
-             leftUpperArm указывает +X → ротация +Z опускает к -Y (вниз) */
+             leftUpperArm указывает +X → ротация +Z опускает к -Y (вниз).
+             Это fallback-поза: когда играет Mixamo-клип, микшер её
+             перезаписывает своими кадрами. */
           if (bones.shL) bones.shL.rotation.z += VRM_ARM_DOWN;
           if (bones.shR) bones.shR.rotation.z -= VRM_ARM_DOWN;
+
+          /* ---- Mixamo-анимации через AnimationMixer + ретаргет ----
+             (retarget.js). Высота бёдер в координатах модели — для
+             масштабирования root-motion бёдер из клипа. */
+          scene.updateWorldMatrix(true, true);
+          let hipsY = 1;
+          if (bones.pelvis && bones.pelvis.getWorldPosition){
+            const v = new THREE.Vector3();
+            bones.pelvis.getWorldPosition(v);
+            v.applyMatrix4(new THREE.Matrix4().copy(scene.matrixWorld).invert());
+            if (Math.abs(v.y) > 1e-4) hipsY = Math.abs(v.y);
+          }
+          /* rest-снимок всех гуманоидных костей — вернуть позу после клипа */
+          const _restPose = [];
+          Object.keys(nodeName).forEach(k => {
+            const n = findByName(nodeName[k]);
+            if (n) _restPose.push([n, n.quaternion.clone(), n.position.clone()]);
+          });
+          const restoreRest = () =>
+            _restPose.forEach(([n,q,p]) => { n.quaternion.copy(q); n.position.copy(p) });
+
+          const mixer = new THREE.AnimationMixer(scene);
+          const _clips = {}, _actions = {};
+          let _currentAction = null, _finishHandler = null, _holdLoop = false;
+
+          function playAnim(name, fadeIn = .3, loop = false){
+            const clip = _clips[name]; if (!clip) return false;
+            if (name === "idle") loop = true;
+            if (_finishHandler){
+              mixer.removeEventListener("finished", _finishHandler);
+              _finishHandler = null;
+            }
+            const next = _actions[name] || (_actions[name] = mixer.clipAction(clip));
+            if (_currentAction && _currentAction !== next) _currentAction.fadeOut(fadeIn);
+            next.reset().fadeIn(fadeIn).play();
+            _currentAction = next;
+            _holdLoop = loop && name !== "idle";
+            if (loop){ next.setLoop(THREE.LoopRepeat); return true; }
+            next.setLoop(THREE.LoopOnce, 1);
+            next.clampWhenFinished = true;
+            _finishHandler = e => {
+              if (e.action !== next) return;
+              mixer.removeEventListener("finished", _finishHandler);
+              _finishHandler = null;
+              if (_clips.idle){
+                const idle = _actions.idle || (_actions.idle = mixer.clipAction(_clips.idle));
+                next.fadeOut(fadeIn);
+                idle.reset().fadeIn(fadeIn).play();
+                idle.setLoop(THREE.LoopRepeat);
+                _currentAction = idle;
+              } else {
+                mixer.stopAllAction(); _currentAction = null; restoreRest();
+              }
+            };
+            mixer.addEventListener("finished", _finishHandler);
+            return true;
+          }
+          function stopAnim(fade = .25){
+            _holdLoop = false;
+            if (!_currentAction) return;
+            if (_clips.idle){
+              if (_currentAction !== _actions.idle) playAnim("idle", fade);
+            } else {
+              mixer.stopAllAction(); _currentAction = null; restoreRest();
+            }
+          }
 
           /* слоты для жёстких аксессуаров (шапки/очки как emoji-спрайты) */
           const hatSlot = new THREE.Group(); hatSlot.position.set(0, .16, 0);
@@ -780,6 +848,34 @@ window.Hero = (() => {
           const hero = {
             group: root, bones, face: {}, zones, rest, gender: "f",
             isFBX: false, isVRM: true, fxAura: "", _equipSprites: [], _clothesFBX: {},
+            mixer, _clips, _actions, playAnim, stopAnim,
+            get mixerActive(){ return !!_currentAction },
+            get holdLoop(){ return _holdLoop },
+            /* загрузка Mixamo-FBX с ретаргетом на этот VRM */
+            loadAnim(url, name){
+              return new Promise((resolve, reject) => {
+                if (typeof Retarget === "undefined")
+                  return reject(new Error("retarget.js не подключён"));
+                if (typeof THREE.FBXLoader === "undefined")
+                  return reject(new Error("FBXLoader не подключён"));
+                try {
+                  new THREE.FBXLoader().load(url, r => {
+                    try {
+                      if (!(r.animations && r.animations[0]))
+                        return reject(new Error("no anim in " + url));
+                      const clip = Retarget.mixamoToVRM(
+                        r, r.animations[0], b => nodeName[b], hipsY);
+                      clip.name = name;
+                      _clips[name] = clip;
+                      /* idle стартует сразу, как только загрузился */
+                      if (name === "idle" && !_currentAction) playAnim("idle", .6);
+                      console.log(`[VRM] анимация «${name}» загружена (${url})`);
+                      resolve();
+                    } catch(e){ reject(e) }
+                  }, undefined, e => reject(e));
+                } catch(e){ reject(e) }
+              });
+            },
             setLevel(){},
             _loadClothes3D(){}, _setClothesVisible(){}, _anchorBones(){ return [] },
             setEquip(equipped, defOf){
