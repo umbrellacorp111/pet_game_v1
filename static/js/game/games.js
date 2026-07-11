@@ -519,11 +519,150 @@ window.Games = (() => {
     } catch(e){ console.error("[finishPending]", e) }
   }
 
+  /* ---------- Шахта Удачи (казино-слот) ----------
+     Вся математика на сервере (mine_spin): клиент только анимирует
+     присланный результат — поле, кирки, руду, сундуки, выплату. */
+  const MINE_EMO  = {dirt:"", stone:"", coal:"⚫", iron:"⚙️", gold:"🟡", diam:"💎"};
+  const MINE_MULT = {coal:.1, iron:.2, gold:.5, diam:1};
+  const MINE_BETS = [10,25,50,100,200];
+  let MN = null;
+
+  function mineCell(c, r){ return $("mBoard").children[r*5 + c] }
+
+  function mineReset(){
+    /* пустое поле: 5×5 нетронутых блоков, кирки-«?», запертые сундуки */
+    $("mPicks").innerHTML = Array.from({length:5}, () =>
+      `<div class="mPick">❔</div>`).join("");
+    $("mBoard").innerHTML = Array.from({length:25}, () =>
+      `<div class="mCell hid">▦</div>`).join("");
+    $("mChests").innerHTML = Array.from({length:5}, () =>
+      `<div class="mChest">🔒</div>`).join("");
+    $("mMult").textContent = "\u00a0";
+    $("mMult").className = "mineMult font-d";
+  }
+
+  function mineRenderCtl(){
+    $("mCoins").textContent = (GS.S ? GS.S.coins : 0) + " 🪙";
+    $("mBets").innerHTML = MINE_BETS.map(b =>
+      `<button class="mBet ${b===MN.bet?'on':''}" data-b="${b}">${b}</button>`).join("");
+    $("mBets").querySelectorAll(".mBet").forEach(el => el.onclick = () => {
+      if (MN.busy) return;
+      MN.bet = +el.dataset.b; Sfx.play("tap"); hap("light"); mineRenderCtl();
+    });
+    $("mSpin").disabled = !!MN.busy;
+    $("mSpin").textContent = MN.busy ? "⛏ КОПАЕМ…" : "⛏ КОПАТЬ · " + MN.bet + " 🪙";
+  }
+
+  function minePop(cell, text, cls){
+    const el = document.createElement("b");
+    el.className = "mPop " + (cls || "");
+    el.textContent = text;
+    cell.appendChild(el);
+    setTimeout(() => el.remove(), 900);
+  }
+
+  async function mineSpin(){
+    if (!MN || MN.busy) return;
+    const d = await Api.call("mine_spin", {bet: MN.bet});
+    if (!d){ return }
+    MN.busy = true; mineRenderCtl();
+    Sfx.play("reel");
+    mineReset();
+
+    /* 1. раскрываем поле */
+    d.board.forEach((col, c) => col.forEach((t, r) => {
+      const cell = mineCell(c, r);
+      setTimeout(() => {
+        cell.className = "mCell " + t;
+        cell.textContent = MINE_EMO[t];
+      }, 60*r + 25*c);
+    }));
+
+    /* 2. крутим кирки как барабаны слота */
+    const pickEls = [...$("mPicks").children];
+    const roll = setInterval(() => pickEls.forEach(el =>
+      el.innerHTML = `⛏<b>${1 + Math.random()*5|0}</b>`), 80);
+    const T0 = 900;
+    setTimeout(() => {
+      clearInterval(roll);
+      pickEls.forEach((el, c) => { el.innerHTML = `⛏<b>${d.picks[c]}</b>`; el.classList.add("set") });
+      Sfx.play("tick"); hap("light");
+    }, T0);
+
+    /* 3. копаем колонны, копим множитель */
+    let mult = 0, t = T0 + 350;
+    const STEP = 200;
+    for (let r = 0; r < 5; r++){
+      for (let c = 0; c < 5; c++){
+        if (r >= d.picks[c]) continue;
+        const type = d.board[c][r], cell = mineCell(c, r);
+        const at = t + r*STEP + c*55;
+        setTimeout(() => {
+          if (!MN || MN.over) return;
+          cell.classList.add("mined");
+          if (MINE_MULT[type]){
+            mult += MINE_MULT[type];
+            minePop(cell, "+x" + MINE_MULT[type], "ore");
+            $("mMult").textContent = "x" + mult.toFixed(1).replace(/\.0$/,"");
+            Sfx.play("coin");
+          } else Sfx.play("pop");
+        }, at);
+      }
+    }
+    t += 5*STEP + 300;
+
+    /* 4. сундуки прокопанных колонн */
+    d.chests.forEach((open, c) => { if (!open) return;
+      setTimeout(() => {
+        if (!MN || MN.over) return;
+        const ch = $("mChests").children[c];
+        ch.textContent = "🪙"; ch.classList.add("open");
+        minePop(ch, "+x1", "ore");
+        Sfx.play("sparkle"); hap("medium");
+      }, t);
+    });
+    if (d.chests.some(Boolean)) t += 500;
+
+    /* 5. итог */
+    setTimeout(() => {
+      if (!MN || MN.over) return;
+      GS.set("S", d); UI.render();
+      const m = $("mMult");
+      if (d.payout > 0){
+        m.textContent = "ВЫИГРЫШ " + d.payout + " 🪙 (x" + d.mult + ")";
+        m.className = "mineMult font-d win";
+        Sfx.play(d.payout >= d.bet*3 ? "fanfare" : "win"); hap("ok");
+        if (d.payout >= d.bet*3) UI.confetti();
+      } else {
+        m.textContent = "Пусто… порода 🪨";
+        m.className = "mineMult font-d lose";
+        Sfx.play("bad");
+      }
+      MN.busy = false; mineRenderCtl();
+    }, t + 200);
+  }
+
+  function startMine(){
+    try {
+      MN = {bet: 25, busy: false, over: false};
+      $("mineOv").classList.add("on");
+      mineReset(); mineRenderCtl();
+      $("mSpin").onclick = mineSpin;
+    } catch(e){ console.error("[startMine]", e) }
+  }
+  function exitMine(){
+    if (MN) MN.over = true;
+    MN = null;
+    $("mineOv").classList.remove("on");
+    UI.render();
+  }
+
   function bind(){
     document.querySelectorAll(".pad").forEach(p=>p.onclick = ()=>padTap(+p.dataset.i));
   }
 
   return { bind, startCatch, closeCatch, exitCatch, startSimon, closeSimon, exitSimon, runCatch,
            startFishing, closeFishing, exitFishing,
+           startMine, exitMine,
            get G(){ return G } };
 })();

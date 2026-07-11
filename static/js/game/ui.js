@@ -129,10 +129,12 @@ window.UI = (() => {
         <div class="bigAct g-gold ${s.game_cd>0?'dis':''}" data-action="catch" style="flex:1;min-width:0">
           🍔 Лови еду<small>${s.game_cd>0?"отдых "+s.game_cd+" c":"до 45 🪙 · рекорд "+s.best_score}</small></div>
         <div class="bigAct g-viol ${s.simon_cd>0?'dis':''}" data-action="simon" style="flex:1;min-width:0">
-          🎵 Ритм<small>${s.simon_cd>0?"отдых "+s.simon_cd+" c":"6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len}</small></div></div>` },
-    pond(){ const s = S(); if (!s) return '';
-      return `<div class="bigAct g-sky ${s.fishing_cd>0?'dis':''}" data-action="fishing">
+          🎵 Ритм<small>${s.simon_cd>0?"отдых "+s.simon_cd+" c":"6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len}</small></div></div>
+      <div class="bigAct g-sky ${s.fishing_cd>0?'dis':''}" data-action="fishing" style="margin-top:8px">
         🎣 Рыбалка<small>${s.fishing_cd>0?"отдых "+s.fishing_cd+" c":"до 40 🪙 · рекорд "+(s.best_fishing||0)}</small></div>` },
+    casino(){ const s = S(); if (!s) return '';
+      return `<div class="bigAct g-gold" data-action="mineslot">
+        🎰 Шахта Удачи<small>ставки 10–200 🪙 · лучший куш ${(s.best_mine||0)} 🪙</small></div>` },
     bath(){ return `<div class="bigAct g-mint" data-action="shower">🚿 Помыть<small>чистота → 100 · +XP</small></div>` },
     arena(){ const s = S(); if (!s) return '';
       const full = s.arena_charge >= 100;
@@ -382,6 +384,7 @@ window.UI = (() => {
       else if (a === "catch") Games.startCatch();
       else if (a === "simon") Games.startSimon();
       else if (a === "fishing") Games.startFishing();
+      else if (a === "mineslot") Games.startMine();
       else if (a === "shower") shower();
       else if (a === "arena") Arena.start();
       else if (a === "sleep" || a === "wake") sleep();

@@ -33,6 +33,17 @@ GAME_COST_ENERGY = 12
 CATCH_MIN_SEC, CATCH_MAX_REWARD, CATCH_RATE = 18, 45, 2.2
 SIMON_LEN, SIMON_REWARD_PER, SIMON_MIN_SEC_PER = 12, 6, 0.7
 GAME_COOLDOWN = 40
+
+# ---- Шахта Удачи (казино-слот) ----
+MINE_BETS = (10, 25, 50, 100, 200)
+MINE_COOLDOWN = 3                       # секунд между спинами (анти-спам)
+# тип блока, вес выпадения, множитель ставки за добычу
+MINE_BLOCKS = [("dirt",49,0), ("stone",28,0), ("coal",10,.1),
+               ("iron",7,.2), ("gold",4,.5), ("diam",2,1.0)]
+# сила кирки (сколько блоков прокопает в колонке), вес выпадения
+MINE_POWERS = [(1,32), (2,30), (3,20), (4,13), (5,5)]
+MINE_CHEST_BONUS = 1.0                  # бонус за полностью прокопанную колонку
+MINE_COLS, MINE_ROWS = 5, 5
 FISHING_MIN_SEC, FISHING_MAX_REWARD, FISHING_RATE = 15, 40, 1.8
 
 # ---- АРЕНА ----
@@ -149,6 +160,11 @@ def init_db():
         # migration: add fishing columns if missing
         for col in ("fishing_started", "last_fishing", "best_fishing"):
             coltype = "INTEGER DEFAULT 0" if col == "best_fishing" else "REAL DEFAULT 0"
+            try: c.execute(f"ALTER TABLE players ADD COLUMN {col} {coltype}")
+            except: pass
+        # migration: add mine slot columns if missing
+        for col, coltype in (("last_mine", "REAL DEFAULT 0"),
+                             ("best_mine", "INTEGER DEFAULT 0")):
             try: c.execute(f"ALTER TABLE players ADD COLUMN {col} {coltype}")
             except: pass
 
@@ -290,6 +306,7 @@ def public_state(p, extra=None):
         "sleeping": bool(p["sleeping"]),
         "streak": p["streak"], "best_streak": p["best_streak"],
         "best_score": p["best_score"], "best_simon": p["best_simon"], "best_fishing": p.get("best_fishing", 0),
+        "best_mine": p.get("best_mine", 0),
         "arena_charge": p["arena_charge"], "trophies": p["trophies"],
         "wins": p["wins"], "losses": p["losses"],
         "league": {"i": li, "name": LEAGUES[li][1], "emoji": LEAGUES[li][2],
@@ -524,6 +541,42 @@ async def api_fishing_finish(request):
     bump_quest(p, "game"); bump_quest(p, "earn", reward)
     return ok(p, reward=reward, score=score, levelup=lvls, new_ach=check_achievements(p))
 
+async def api_mine_spin(request):
+    """Шахта Удачи: ставка списывается, сервер генерирует поле 5×5, кирки и
+    выплату. Ретёрн содержит всё для анимации на клиенте."""
+    p = await auth(request); body = request["body"]
+    bet = int(body.get("bet", 0))
+    if bet not in MINE_BETS: return err("Некорректная ставка")
+    if p["coins"] < bet: return err("Не хватает монет")
+    now = time.time()
+    if now - p.get("last_mine", 0) < MINE_COOLDOWN:
+        return err("Шахта осыпается — подожди пару секунд")
+
+    types   = [b[0] for b in MINE_BLOCKS]
+    weights = [b[1] for b in MINE_BLOCKS]
+    mult_of = {b[0]: b[2] for b in MINE_BLOCKS}
+    board = [random.choices(types, weights=weights, k=MINE_ROWS)
+             for _ in range(MINE_COLS)]                      # board[col][row], сверху вниз
+    picks = random.choices([w[0] for w in MINE_POWERS],
+                           weights=[w[1] for w in MINE_POWERS], k=MINE_COLS)
+    mult, chests = 0.0, []
+    for c in range(MINE_COLS):
+        for r in range(picks[c]):
+            mult += mult_of[board[c][r]]
+        opened = picks[c] >= MINE_ROWS
+        chests.append(opened)
+        if opened: mult += MINE_CHEST_BONUS
+
+    payout = int(round(bet * mult))
+    p["coins"] += payout - bet
+    p["last_mine"] = now
+    p["best_mine"] = max(p.get("best_mine", 0), payout)
+    save(p, "coins", "last_mine", "best_mine")
+    if payout > bet: bump_quest(p, "earn", payout - bet)
+    return ok(p, board=board, picks=picks, chests=chests,
+              mult=round(mult, 2), payout=payout, bet=bet,
+              new_ach=check_achievements(p))
+
 async def api_battle_start(request):
     p = await auth(request)
     blocked = awake_required(p)
@@ -693,7 +746,7 @@ async def main():
     app.router.add_static("/static", STATIC)
     for name in ("state","setname","daily","feed","shower","sleep",
                  "game_start","game_finish","simon_start","simon_finish",
-                 "fishing_start","fishing_finish",
+                 "fishing_start","fishing_finish","mine_spin",
                  "battle_start","battle_finish","arena_buy",
                  "claim_quest","buy","equip","top"):
         app.router.add_post(f"/api/{name}", globals()[f"api_{name}"])
