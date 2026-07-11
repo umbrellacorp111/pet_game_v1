@@ -522,7 +522,6 @@ window.Games = (() => {
   /* ---------- Шахта Удачи (казино-слот) ----------
      Вся математика на сервере (mine_spin): клиент только анимирует
      присланный результат — поле, кирки, руду, сундуки, выплату. */
-  const MINE_EMO  = {dirt:"", stone:"", coal:"⚫", iron:"⚙️", gold:"🟡", diam:"💎"};
   const MINE_MULT = {coal:.1, iron:.2, gold:.5, diam:1};
   const MINE_BETS = [10,25,50,100,200];
   let MN = null;
@@ -561,6 +560,58 @@ window.Games = (() => {
     setTimeout(() => el.remove(), 900);
   }
 
+  /* ---- кирки и разрушение блоков ---- */
+  const MINE_SHARD = {                       /* [цвет породы, цвет вкраплений] */
+    dirt:["#9b6a3c","#7d5026"], stone:["#909298","#74767d"],
+    coal:["#8f9099","#33343a"], iron:["#8f9099","#d8af93"],
+    gold:["#8f9099","#f7d244"], diam:["#8f9099","#6fe3e1"],
+  };
+
+  function mineSpawnAxe(c){
+    const cell = mineCell(c, 0); if (!cell) return;
+    const axe = document.createElement("div");
+    axe.className = "mAxe"; axe.innerHTML = "<span>⛏</span>";
+    $("mBoard").appendChild(axe);
+    axe.style.transform =
+      `translate(${cell.offsetLeft + 3}px, ${cell.offsetTop - cell.offsetHeight*1.1}px)`;
+    if (MN) MN.axes[c] = axe;
+  }
+  function mineAxeMove(c, r){
+    const axe = MN && MN.axes[c]; if (!axe) return;
+    const cell = mineCell(c, r); if (!cell) return;
+    axe.style.transform =
+      `translate(${cell.offsetLeft + 3}px, ${cell.offsetTop - cell.offsetHeight*.42}px)`;
+  }
+  function mineAxeSwing(c){
+    const axe = MN && MN.axes[c]; if (!axe) return;
+    const sp = axe.firstChild;
+    sp.classList.remove("swing"); void sp.offsetWidth; sp.classList.add("swing");
+  }
+  function mineAxeRemove(c){
+    const axe = MN && MN.axes[c]; if (!axe) return;
+    axe.classList.add("gone");
+    setTimeout(() => axe.remove(), 300);
+    delete MN.axes[c];
+  }
+
+  function mineShatter(cell, type){
+    const [rock, spot] = MINE_SHARD[type] || MINE_SHARD.stone;
+    cell.animate([{filter:"brightness(2.2)"},{filter:"brightness(1)"}], {duration:130});
+    const n = MINE_MULT[type] ? 9 : 6;      /* руда крошится эффектнее */
+    for (let i = 0; i < n; i++){
+      const s = document.createElement("i");
+      s.className = "mShard";
+      s.style.background = (MINE_MULT[type] && i % 2) ? spot : rock;
+      cell.appendChild(s);
+      const a = Math.random()*Math.PI*2, dst = 16 + Math.random()*30;
+      s.animate([
+        {transform:"translate(-50%,-50%) rotate(0)", opacity:1},
+        {transform:`translate(${Math.cos(a)*dst - 4}px, ${Math.sin(a)*dst - 14}px) rotate(${Math.random()*260-130}deg)`, opacity:0},
+      ], {duration:420 + Math.random()*260, easing:"cubic-bezier(.2,.7,.3,1)"})
+        .onfinish = () => s.remove();
+    }
+  }
+
   async function mineSpin(){
     if (!MN || MN.busy) return;
     const d = await Api.call("mine_spin", {bet: MN.bet});
@@ -574,7 +625,7 @@ window.Games = (() => {
       const cell = mineCell(c, r);
       setTimeout(() => {
         cell.className = "mCell " + t;
-        cell.textContent = MINE_EMO[t];
+        cell.textContent = "";
       }, 60*r + 25*c);
     }));
 
@@ -589,41 +640,52 @@ window.Games = (() => {
       Sfx.play("tick"); hap("light");
     }, T0);
 
-    /* 3. копаем колонны, копим множитель */
-    let mult = 0, t = T0 + 350;
-    const STEP = 200;
-    for (let r = 0; r < 5; r++){
-      for (let c = 0; c < 5; c++){
-        if (r >= d.picks[c]) continue;
-        const type = d.board[c][r], cell = mineCell(c, r);
-        const at = t + r*STEP + c*55;
+    /* 3. кирки падают на колонны и разбивают блоки */
+    let mult = 0;
+    const fmt = v => "x" + v.toFixed(1).replace(/\.0$/, "");
+    const STRIKE = 210, T1 = T0 + 380;
+    let tEnd = T1;
+    MN.axes = {};
+    for (let c = 0; c < 5; c++){
+      const base = T1 + c*130, power = d.picks[c];
+      setTimeout(() => { if (MN && !MN.over) mineSpawnAxe(c) }, base - 160);
+      for (let r = 0; r < power; r++){
+        const at = base + r*STRIKE;
+        setTimeout(() => { if (MN && !MN.over) mineAxeMove(c, r) }, at - 140);
+        setTimeout(() => { if (MN && !MN.over) mineAxeSwing(c) }, at - 70);
         setTimeout(() => {
           if (!MN || MN.over) return;
+          const type = d.board[c][r], cell = mineCell(c, r);
+          mineShatter(cell, type);
           cell.classList.add("mined");
           if (MINE_MULT[type]){
             mult += MINE_MULT[type];
             minePop(cell, "+x" + MINE_MULT[type], "ore");
-            $("mMult").textContent = "x" + mult.toFixed(1).replace(/\.0$/,"");
-            Sfx.play("coin");
-          } else Sfx.play("pop");
+            $("mMult").textContent = fmt(mult);
+            Sfx.play("coin"); hap("light");
+            if (type === "diam"){
+              $("mBoard").classList.add("quake");
+              setTimeout(() => $("mBoard").classList.remove("quake"), 320);
+              hap("medium");
+            }
+          } else Sfx.play("hit");
         }, at);
       }
-    }
-    t += 5*STEP + 300;
-
-    /* 4. сундуки прокопанных колонн */
-    d.chests.forEach((open, c) => { if (!open) return;
-      setTimeout(() => {
+      const done = base + power*STRIKE;
+      setTimeout(() => { if (MN && !MN.over) mineAxeRemove(c) }, done + 60);
+      if (d.chests[c]) setTimeout(() => {
         if (!MN || MN.over) return;
         const ch = $("mChests").children[c];
         ch.textContent = "🪙"; ch.classList.add("open");
         minePop(ch, "+x1", "ore");
+        mult += 1;
+        $("mMult").textContent = fmt(mult);
         Sfx.play("sparkle"); hap("medium");
-      }, t);
-    });
-    if (d.chests.some(Boolean)) t += 500;
+      }, done + 140);
+      tEnd = Math.max(tEnd, done + (d.chests[c] ? 500 : 220));
+    }
 
-    /* 5. итог */
+    /* 4. итог */
     setTimeout(() => {
       if (!MN || MN.over) return;
       GS.set("S", d); UI.render();
@@ -639,12 +701,12 @@ window.Games = (() => {
         Sfx.play("bad");
       }
       MN.busy = false; mineRenderCtl();
-    }, t + 200);
+    }, tEnd + 250);
   }
 
   function startMine(){
     try {
-      MN = {bet: 25, busy: false, over: false};
+      MN = {bet: 25, busy: false, over: false, axes: {}};
       $("mineOv").classList.add("on");
       mineReset(); mineRenderCtl();
       $("mSpin").onclick = mineSpin;
