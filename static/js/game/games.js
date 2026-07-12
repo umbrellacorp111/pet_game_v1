@@ -533,8 +533,29 @@ window.Games = (() => {
 
   const mineCell = (c, r) => $("mBoard").children[r*5 + c];
   const mineSlot = (c, r) => $("mPicks").children[r*5 + c];
-  const pickHTML = t => `<span class="pk t-${t}">⛏</span><b class="dmg d-${t}">${MINE_DMG[t]}</b>`;
+  const PICK_SVG = `<svg class="pkTool" viewBox="0 0 32 32" fill="none" stroke="currentColor"
+    stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 29 L16 9"/><path d="M16 9 Q5 7 6 18"/><path d="M16 9 Q27 7 26 18"/></svg>`;
+  const pickHTML = t => `<span class="pk t-${t}">${PICK_SVG}<b class="dmg d-${t}">${MINE_DMG[t]}</b></span>`;
   const fmtM = v => "x" + (+v.toFixed(2)).toString();
+
+  /* ---- мощные эффекты: луч, вспышка, тряска ---- */
+  function mineBeam(el, color){
+    if (!el) return;
+    const b = document.createElement("i");
+    b.className = "mBeam"; b.style.color = color;
+    el.appendChild(b); setTimeout(() => b.remove(), 520);
+  }
+  function mineFlash(color){
+    const f = $("mFlash"); if (!f) return;
+    f.style.color = color; f.classList.remove("show");
+    void f.offsetWidth; f.classList.add("show");
+  }
+  function mineShake(el){
+    if (!el) return;
+    el.classList.remove("mineShake"); void el.offsetWidth; el.classList.add("mineShake");
+    setTimeout(() => el.classList.remove("mineShake"), 470);
+  }
 
   function mineReset(){
     /* инвентарь 3×5, поле 5×5, запертые сундуки */
@@ -674,6 +695,8 @@ window.Games = (() => {
     }
     /* искры руды */
     if (isOre) mineSparks(cell, spot, type === "diam" ? 14 : type === "gold" ? 10 : 7);
+    if (type === "gold"){ mineFlash("#ffd76a"); mineShake($("mBoard")) }
+    if (type === "diam"){ mineFlash("#7deeec"); mineShake($("mBoard")) }
   }
 
   function mineSparks(el, color, n){
@@ -726,12 +749,16 @@ window.Games = (() => {
     setTimeout(() => {
       fly.remove();
       to.innerHTML = pickHTML(step.tier);
-      to.classList.add("has");
+      to.classList.add("has","merging");
       to.animate([{transform:"scale(1.45)",filter:"brightness(2)"},
                   {transform:"scale(1)",filter:"brightness(1)"}], {duration:240});
       mineSparks(to, MINE_TIER_GLOW[step.tier], step.tier === "d" ? 10 : 6);
       mineWord(MINE_TIER_WORD[step.tier], step.tier === "d" ? "diam" : "gold");
       Sfx.play(step.tier === "d" ? "sparkle" : "pop"); hap("light");
+      if (step.tier === "g" || step.tier === "d"){
+        mineBeam(to, step.tier === "d" ? "#7deeec" : "#ffd76a");
+        mineFlash(step.tier === "d" ? "#7deeec" : "#ffd76a");
+      }
     }, 300);
   }
 
@@ -853,7 +880,9 @@ window.Games = (() => {
           mineWord("КУШ! 🤑", "win");
           UI.confetti();
           Sfx.play("fanfare");
-        } else Sfx.play("win");
+          mineFlash("#ffd76a");
+          mineShake($("mineOv").querySelector(".mineWrap"));
+        } else { Sfx.play("win"); mineFlash("#8dffb0") }
         hap("ok");
       } else {
         m.textContent = "Пусто… порода 🪨";
