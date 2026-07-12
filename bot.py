@@ -56,11 +56,13 @@ ALCHEMY_RANKS = ["Капля","Роса","Кристалл","Осколок","С
                  "Звезда","Сияние","Мифический","Вечный","Легенда"]
 ALCHEMY_COIN_PER = 2          # монет за единицу ранга, добытого слиянием
 ALCHEMY_DAILY_CAP = 60        # потолок монет/день из Алхимика
-ALCHEMY_MOVES = 20            # ходов в день
 ALCHEMY_TALISMAN_RANK = 9     # с этого ранга — в коллекцию + талисман
 ALCHEMY_TALISMAN_CHANCE = 0.08  # шанс спавна плитки ранга 2 вместо 1
 ALCHEMY_BOOST = 1.5           # множитель буста к шахте
 ALCHEMY_MOVE_CD = 0.12        # антиспам между ходами, сек
+ALCHEMY_TAL_TTL = 86400       # талисман живёт 24ч после получения
+# Алхимические символы плиток (для клиента; порядок = ранги 1..11)
+ALCHEMY_SYMS = ["💧","🫧","❄️","🔷","🔮","🩸","✨","🌟","⚗️","🧪","💠"]
 
 # ---- АРЕНА ----
 CHARGE_PER_GAME = 34        # заряд за раунд мини-игры
@@ -196,6 +198,7 @@ def init_db():
             ("alchemy_best",     "INTEGER DEFAULT 0"),
             ("alchemy_items",    "TEXT DEFAULT '[]'"),
             ("alchemy_talismans","TEXT DEFAULT '[]'"),
+            ("alchemy_tal_day",  "INTEGER DEFAULT 0"),
             ("mine_boost",       "REAL DEFAULT 0")):
             try: c.execute(f"ALTER TABLE players ADD COLUMN {col} {coltype}")
             except: pass
@@ -273,7 +276,7 @@ def tick(p):
     # НОВЫЙ ДЕНЬ: восстановление ходов Алхимика + сброс дневного капа монет
     ad = today_n()
     if p["alchemy_last_day"] != ad:
-        p["alchemy_moves"] = ALCHEMY_MOVES
+        p["alchemy_moves"] = 0          # счётчик ходов, сделанных за день
         p["alchemy_day_coins"] = 0
         p["alchemy_day"] = ad
         p["alchemy_last_day"] = ad
@@ -377,8 +380,11 @@ def public_state(p, extra=None):
             "daily_cap": ALCHEMY_DAILY_CAP, "coin_per": ALCHEMY_COIN_PER,
             "board": json.loads(p["alchemy_board"]),
             "items": json.loads(p["alchemy_items"]),
-            "talismans": json.loads(p["alchemy_talismans"]),
-            "ranks": ALCHEMY_RANKS, "tal_rank": ALCHEMY_TALISMAN_RANK,
+            "talismans": alchemy_active_talismans(p, now),
+            "ranks": ALCHEMY_RANKS, "syms": ALCHEMY_SYMS,
+            "tal_rank": ALCHEMY_TALISMAN_RANK,
+            "locked": p["alchemy_tal_day"] == today_n(),
+            "boost": ALCHEMY_BOOST, "tal_ttl": ALCHEMY_TAL_TTL,
             "boost_ready": p["mine_boost"] > 0,
         },
         "game_cd": max(0, int(GAME_COOLDOWN - (now - p["last_game"]))),
@@ -663,6 +669,20 @@ async def api_mine_spin(request):
               new_ach=check_achievements(p))
 
 # ---------- API: АЛХИМИК (2048-merge) ----------
+def alchemy_active_talismans(p, now=None):
+    """Живые (неистёкшие, неиспользованные) талисманы с остатком времени (сек).
+    Индекс `idx` — позиция в исходном массиве (нужна для api_alchemy_boost)."""
+    now = now or time.time()
+    out = []
+    for i, t in enumerate(json.loads(p["alchemy_talismans"])):
+        if t.get("used"):
+            continue
+        left = int(ALCHEMY_TAL_TTL - (now - t.get("ts", now)))
+        if left <= 0:
+            continue
+        out.append({"idx": i, "rank": t["rank"], "left": left})
+    return out
+
 def alchemy_new_board(n=2):
     nb = [[0]*ALCHEMY_SIZE for _ in range(ALCHEMY_SIZE)]
     for _ in range(n):
@@ -674,49 +694,56 @@ def alchemy_new_board(n=2):
     return nb
 
 def alchemy_slide(board, move):
-    """Сдвиг+слияние одинаковых (механика 2048). Возвращает изменённую доску."""
+    """Сдвиг+слияние одинаковых (механика 2048).
+    Возвращает список [r,c] клеток итоговой доски, где произошло слияние."""
     n = ALCHEMY_SIZE
     cols = (move in ("left", "right"))
     rev = (move in ("right", "down"))
+    merges = []
     for i in range(n):
         line = ([board[i][k] for k in range(n)] if cols
                 else [board[k][i] for k in range(n)])
         if rev: line = line[::-1]
         nums = [x for x in line if x]
-        out, j = [], 0
+        out, merged_idx, j = [], [], 0
         while j < len(nums):
             if j + 1 < len(nums) and nums[j] == nums[j+1]:
+                merged_idx.append(len(out))
                 out.append(nums[j] + 1); j += 2
             else:
                 out.append(nums[j]); j += 1
         out += [0] * (n - len(out))
-        if rev: out = out[::-1]
+        if rev:
+            out = out[::-1]
+            merged_idx = [n - 1 - m for m in merged_idx]
         for k in range(n):
             if cols: board[i][k] = out[k]
             else:    board[k][i] = out[k]
-    return board
+        for m in merged_idx:
+            merges.append([i, m] if cols else [m, i])
+    return merges
 
 async def api_alchemy_move(request):
     p = await auth(request)
     body = request["body"]
     move = body.get("move", "")
+    # ЛОК ДНЯ: талисман дня уже получен — играть можно только завтра.
+    # До получения талисмана ходы НЕ ограничены (фарми сколько хочешь).
+    if p["alchemy_tal_day"] == today_n():
+        return err("🔒 Талисман дня уже добыт! Возвращайся завтра за новым.")
     if move == "new":
-        if p["alchemy_moves"] <= 0:
-            return err("Ходы кончились — приходи завтра!")
         p["alchemy_board"] = json.dumps(alchemy_new_board(2))
         save(p, "alchemy_board")
         return ok(p)
     if move not in ("up", "down", "left", "right"):
         return err("Некорректный ход")
-    if p["alchemy_moves"] <= 0:
-        return err("Ходы кончились — приходи завтра!")
     now = time.time()
     if now - p["alchemy_last_move"] < ALCHEMY_MOVE_CD:
         return err("Слишком быстро — подожди")
     board0 = json.loads(p["alchemy_board"])
     before = sum(x for row in board0 for x in row)
     board = [row[:] for row in board0]
-    alchemy_slide(board, move)
+    merges = alchemy_slide(board, move)
     after = sum(x for row in board for x in row)
     changed = (board != board0)
     if not changed:                      # упёрлись — ход не считается
@@ -740,39 +767,48 @@ async def api_alchemy_move(request):
     if p["alchemy_last_play"] != d:
         p["alchemy_streak"] = p["alchemy_streak"] + 1 if p["alchemy_last_play"] == d - 1 else 1
         p["alchemy_last_play"] = d
-    # редкие плитки → коллекция + талисман (разовый)
+    # редкие плитки → коллекция + талисман. Первый добытый талисман за день
+    # ставит ЛОК: дальше играть можно только завтра.
     items = json.loads(p["alchemy_items"])
     talismans = json.loads(p["alchemy_talismans"])
+    # выбросить протухшие (>24ч) и уже использованные талисманы
+    talismans = [t for t in talismans
+                 if not t.get("used") and now - t.get("ts", now) < ALCHEMY_TAL_TTL]
     new_item = None
-    for row in board:
-        for v in row:
-            if v >= ALCHEMY_TALISMAN_RANK and v not in items:
+    for (r, c) in merges:
+        v = board[r][c]
+        if v >= ALCHEMY_TALISMAN_RANK:
+            if v not in items:
                 items.append(v)
-                talismans.append({"rank": v, "used": 0})
-                new_item = v
+            talismans.append({"rank": v, "used": 0, "ts": now})
+            new_item = v
+            p["alchemy_tal_day"] = today_n()   # ЛОК дня
     p["alchemy_items"] = json.dumps(items)
     p["alchemy_talismans"] = json.dumps(talismans)
     p["alchemy_board"] = json.dumps(board)
-    p["alchemy_moves"] -= 1
+    p["alchemy_moves"] += 1
     p["alchemy_last_move"] = now
     p["alchemy_day_coins"] += earn
     p["coins"] += earn
     p["alchemy_best"] = max(p["alchemy_best"], max((v for row in board for v in row), default=0))
     save(p, "alchemy_board","alchemy_moves","alchemy_last_move","alchemy_day_coins",
          "coins","alchemy_best","alchemy_streak","alchemy_last_play",
-         "alchemy_items","alchemy_talismans")
+         "alchemy_items","alchemy_talismans","alchemy_tal_day")
     if earn: bump_quest(p, "earn", earn)
-    return ok(p, spawned=spawned, new_item=new_item,
+    return ok(p, spawned=spawned, merges=merges, new_item=new_item,
               new_talisman=bool(new_item), new_ach=check_achievements(p))
 
 async def api_alchemy_boost(request):
     p = await auth(request)
+    now = time.time()
     i = int(request["body"].get("idx", -1))
     talismans = json.loads(p["alchemy_talismans"])
     if i < 0 or i >= len(talismans) or talismans[i].get("used"):
         return err("Нет такого талисмана")
+    if now - talismans[i].get("ts", now) >= ALCHEMY_TAL_TTL:
+        return err("Талисман выдохся — нужен свежий из Алхимика")
     if p["mine_boost"] > 0:
-        return err("Буст уже активен — иди в Шахту!")
+        return err("Буст уже активен — просто копай!")
     talismans[i]["used"] = 1
     p["alchemy_talismans"] = json.dumps(talismans)
     p["mine_boost"] = ALCHEMY_BOOST

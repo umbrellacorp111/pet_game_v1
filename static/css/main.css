@@ -707,15 +707,52 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 .alcStats{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;width:min(94vw,380px);
   font-size:12px;color:rgba(255,255,255,.7)}
 .alcStats b{color:#fff;font-weight:800}
-.alcBoard{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:min(92vw,340px);
-  padding:10px;border-radius:16px;background:rgba(0,0,0,.32);
-  box-shadow:inset 0 2px 10px rgba(0,0,0,.6),0 0 0 1px rgba(160,107,255,.18)}
+.alcBoardWrap{position:relative;width:min(92vw,340px)}
+.alcBoard{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:100%;
+  padding:10px;border-radius:16px;background:
+    radial-gradient(120% 90% at 50% 0%, rgba(160,107,255,.14), transparent 60%),
+    rgba(0,0,0,.34);
+  box-shadow:inset 0 2px 12px rgba(0,0,0,.65),0 0 0 1px rgba(160,107,255,.25),0 0 22px rgba(160,107,255,.12)}
+#alchemyOv.locked .alcBoard{filter:grayscale(.7) brightness(.5)}
+#alchemyOv.locked .alcPad{opacity:.35;pointer-events:none}
+.alcLock{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;text-align:center;border-radius:16px;padding:16px;
+  background:radial-gradient(circle at 50% 40%,rgba(20,14,32,.78),rgba(9,7,16,.92));
+  backdrop-filter:blur(1px);z-index:5}
+.alcLock.on{display:flex;animation:alcPop .3s ease}
+.alcLockIco{font-size:38px;filter:drop-shadow(0 0 10px rgba(160,107,255,.8))}
+.alcLockT{font-family:'Unbounded',sans-serif;font-weight:900;font-size:16px;color:#fff}
+.alcLockS{font-size:12px;line-height:1.45;color:rgba(255,255,255,.75)}
+.alcLockS b{color:#7af5eb}
+.alcGoal{width:min(92vw,340px);text-align:center;font-size:12px;line-height:1.4;
+  color:rgba(255,255,255,.7);padding:8px 10px;border-radius:11px;
+  background:rgba(160,107,255,.1);box-shadow:inset 0 0 0 1px rgba(160,107,255,.25)}
+.alcGoal b{color:#7af5eb;font-weight:800}
+.alcSmoke{position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background:radial-gradient(50% 40% at 20% 88%, rgba(74,237,219,.10), transparent 60%),
+    radial-gradient(50% 40% at 82% 92%, rgba(160,107,255,.12), transparent 60%)}
 .aCell{aspect-ratio:1;border-radius:11px;display:flex;align-items:center;justify-content:center;
-  font-family:'Unbounded',sans-serif;font-weight:900;font-size:21px;color:#fff;
-  text-shadow:0 2px 3px rgba(0,0,0,.6);position:relative;
-  background:rgba(255,255,255,.05);box-shadow:inset 0 2px 6px rgba(0,0,0,.5)}
+  font-family:'Unbounded',sans-serif;font-weight:900;color:#fff;
+  text-shadow:0 2px 3px rgba(0,0,0,.6);position:relative;overflow:hidden;
+  background:rgba(255,255,255,.05);box-shadow:inset 0 2px 6px rgba(0,0,0,.5);
+  transition:transform .12s cubic-bezier(.3,1.4,.5,1)}
+.aCell .aSym{font-size:26px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5))}
+.aCell .aNum{position:absolute;right:5px;bottom:3px;font-size:11px;font-weight:900;
+  opacity:.85;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+/* редкие плитки медленно «дышат» */
+.aCell.rare{animation:alcBreathe 2.2s ease-in-out infinite}
+.aCell.rare .aSym{animation:alcFloat 2.6s ease-in-out infinite}
+@keyframes alcBreathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.25)}}
+@keyframes alcFloat{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-2px) rotate(3deg)}}
 .aCell.pop{animation:alcPop .32s cubic-bezier(.3,1.4,.5,1)}
 @keyframes alcPop{0%{transform:scale(.2);filter:brightness(2.4)}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+/* СЛИЯНИЕ: вспышка-всплеск + кольцо энергии */
+.aCell.merge{animation:alcMerge .42s cubic-bezier(.3,1.5,.4,1);z-index:2}
+.aCell.merge::after{content:"";position:absolute;inset:-4px;border-radius:14px;
+  border:3px solid rgba(255,255,255,.9);animation:alcRing .42s ease-out forwards;pointer-events:none}
+@keyframes alcMerge{0%{transform:scale(.7);filter:brightness(2.6) saturate(1.6)}
+  45%{transform:scale(1.22);filter:brightness(1.8)}100%{transform:scale(1);filter:brightness(1)}}
+@keyframes alcRing{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.5);opacity:0}}
 /* ранги плиток */
 .aCell.r1{background:linear-gradient(150deg,#a9703f,#7a4f24);box-shadow:inset 2px 2px 0 rgba(255,255,255,.3),inset -2px -3px 0 rgba(0,0,0,.4),3px 3px 0 rgba(8,6,16,.5)}
 .aCell.r2{background:linear-gradient(150deg,#c08a4e,#8a5a2a);box-shadow:inset 2px 2px 0 rgba(255,255,255,.3),inset -2px -3px 0 rgba(0,0,0,.4),3px 3px 0 rgba(8,6,16,.5)}
@@ -749,10 +786,10 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 .alcGallery{display:grid;grid-template-columns:repeat(11,1fr);gap:4px}
 .aGal{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;
   background:rgba(255,255,255,.05);box-shadow:inset 0 0 0 1px rgba(255,255,255,.08);overflow:hidden}
-.aGal .aGalN{font-family:'Unbounded',sans-serif;font-weight:900;font-size:13px;color:rgba(255,255,255,.35)}
+.aGal .aGalS{font-size:15px;line-height:1;filter:grayscale(1) opacity(.35)}
 .aGal .aGalT{font-size:0}
 .aGal.got{background:linear-gradient(150deg,#6a5aa8,#3a2f55);box-shadow:inset 0 0 0 1px rgba(160,107,255,.4)}
-.aGal.got .aGalN{color:#fff}
+.aGal.got .aGalS{filter:none}
 .aGal.rare{box-shadow:inset 0 0 0 1px rgba(74,237,219,.5),0 0 8px rgba(74,237,219,.4)}
 .aGal.leg{box-shadow:inset 0 0 0 1px rgba(160,107,255,.7),0 0 12px rgba(160,107,255,.7)}
 .alcTalismans{display:flex;flex-direction:column;gap:6px}
@@ -762,6 +799,27 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 .aTal button{flex:none;padding:6px 12px;border-radius:9px;border:2px solid #0f172b;font-weight:800;font-size:12px;
   color:#0b0820;background:linear-gradient(180deg,#c8fff6,#7af5eb);box-shadow:2px 2px 0 #0f172b;cursor:pointer}
 .aTal button:disabled{background:rgba(255,255,255,.12);color:rgba(255,255,255,.5);box-shadow:none;border-color:transparent;cursor:default}
-.alcEmpty{color:rgba(255,255,255,.5);font-size:11px;line-height:1.3}
+.alcEmpty{color:rgba(255,255,255,.5);font-size:11px;line-height:1.3;display:block;margin-top:4px}
+.aTalTtl{color:#7af5eb;font-size:11px;font-weight:700;white-space:nowrap}
 .alcNewGame{margin-top:4px;background:linear-gradient(180deg,#a06bff,#7a3ff0);border:2.5px solid #0f172b;
   color:#fff;box-shadow:4px 4px 0 #0f172b}
+
+/* ===== ТАЛИСМАНЫ В ШАХТЕ ===== */
+.mineTalBtn{position:relative;width:36px;height:34px;border-radius:10px;font-size:17px;cursor:pointer;
+  background:linear-gradient(180deg,#3a2f55,#241b3a);border:2px solid #a06bff;
+  box-shadow:2px 2px 0 #0f172b;transition:transform .08s}
+.mineTalBtn:active{transform:translate(1px,1px);box-shadow:1px 1px 0 #0f172b}
+.mineTalBtn.has{animation:alcBoost 1.4s ease-in-out infinite;box-shadow:2px 2px 0 #0f172b,0 0 12px rgba(160,107,255,.7)}
+.mineTalBadge{position:absolute;top:-6px;right:-6px;min-width:16px;height:16px;padding:0 3px;border-radius:8px;
+  font-family:'Unbounded',sans-serif;font-size:10px;font-weight:900;line-height:16px;color:#0b0820;
+  background:#7af5eb;box-shadow:0 0 0 2px #0f172b}
+.mineTalBtn:not(.has) .mineTalBadge{background:rgba(255,255,255,.25);color:rgba(255,255,255,.6)}
+.mineTalModal{max-width:340px;width:92vw;padding:18px 16px;text-align:center}
+.mineTalHd{font-size:16px;color:#fff;margin-bottom:4px}
+.mineTalSub{font-size:12px;line-height:1.4;color:rgba(255,255,255,.65);margin-bottom:12px}
+.mineTalList{display:flex;flex-direction:column;gap:8px;text-align:left}
+.mineTalList .aTal{font-size:14px}
+.mineTalActive{padding:14px;border-radius:12px;font-weight:800;font-size:14px;line-height:1.5;color:#0b0820;
+  background:linear-gradient(180deg,#c8fff6,#7af5eb);box-shadow:0 0 18px rgba(74,237,219,.6)}
+.mineSpinBtn.boosted{background:linear-gradient(180deg,#c8fff6,#4ad9cb);color:#062b27;
+  box-shadow:4px 4px 0 #0f172b,0 0 18px rgba(74,237,219,.7);animation:alcBoost 1.3s ease-in-out infinite}

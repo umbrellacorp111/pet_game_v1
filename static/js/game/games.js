@@ -575,7 +575,10 @@ window.Games = (() => {
       MN.bet = +el.dataset.b; Sfx.play("tap"); hap("light"); mineRenderCtl();
     });
     $("mSpin").disabled = !!MN.busy;
-    $("mSpin").textContent = MN.busy ? "⛏ КОПАЕМ…" : "⛏ КОПАТЬ · " + MN.bet + " 🪙";
+    const boosted = GS.S && GS.S.alchemy && GS.S.alchemy.boost_ready;
+    $("mSpin").classList.toggle("boosted", !!boosted);
+    $("mSpin").textContent = MN.busy ? "⛏ КОПАЕМ…"
+      : (boosted ? "⚡ КОПАТЬ ×1.5 · " + MN.bet + " 🪙" : "⛏ КОПАТЬ · " + MN.bet + " 🪙");
   }
 
   function minePop(cell, text, cls){
@@ -886,7 +889,7 @@ window.Games = (() => {
         m.className = "mineMult font-d lose";
         Sfx.play("bad");
       }
-      MN.busy = false; mineRenderCtl();
+      MN.busy = false; mineRenderCtl(); mineTalRefreshBadge();
     }, tEnd + 500);
   }
 
@@ -908,7 +911,7 @@ window.Games = (() => {
   function launchMine(){
     MN = {bet: 25, busy: false, over: false, axes: {}};
     $("mineOv").classList.add("on");
-    mineReset(); mineRenderCtl();
+    mineReset(); mineRenderCtl(); mineTalRefreshBadge();
     $("mSpin").onclick = mineSpin;
   }
   function exitMine(){
@@ -934,13 +937,15 @@ window.Games = (() => {
     }
     return false;
   }
+  function alcSym(st, r){ return (st.syms && st.syms[r-1]) || ""; }
   function alcRender(){
     const st = GS.S && GS.S.alchemy; if (!st) return;
-    $("alcMoves").textContent = st.moves;
+    $("alcMoves").textContent = st.locked ? "🔒" : (st.moves || 0);
     $("alcBest").textContent = st.best;
     $("alcStreak").textContent = st.streak;
     $("alcCoins").textContent = (GS.S.coins||0) + " 🪙";
     $("alcCap").textContent = st.day_coins + "/" + st.daily_cap;
+    $("alcGoalR").textContent = st.tal_rank;
     const board = $("alcBoard");
     if (board.children.length !== ALC_SIZE*ALC_SIZE)
       board.innerHTML = Array.from({length:ALC_SIZE*ALC_SIZE},
@@ -949,55 +954,67 @@ window.Games = (() => {
     for (let r=0;r<ALC_SIZE;r++) for (let c=0;c<ALC_SIZE;c++){
       const v = (b[r] && b[r][c]) || 0;
       const el = alcCell(r,c);
-      el.className = "aCell" + (v ? " r"+v : "");
-      el.textContent = v ? v : "";
+      el.className = "aCell" + (v ? " r"+v : "") + (v>=st.tal_rank ? " rare" : "");
+      el.innerHTML = v ? `<span class="aSym">${alcSym(st,v)}</span><span class="aNum">${v}</span>` : "";
       el.dataset.rank = v;
     }
+    // ЛОК дня: талисман уже добыт — доска гаснет, пад блокируется
+    $("alcLock").classList.toggle("on", !!st.locked);
+    $("alchemyOv").classList.toggle("locked", !!st.locked);
     alcGallery(); alcTalismans();
-    $("alcBoost").classList.toggle("on", !!st.boost_ready);
-    $("alcNewGame").style.display = (st.moves>0 && !hasMove(b)) ? "block" : "none";
+    $("alcNewGame").style.display = (!st.locked && !hasMove(b)) ? "block" : "none";
   }
   function alcGallery(){
     const st = GS.S.alchemy, g = $("alcGallery");
     g.innerHTML = st.ranks.map((nm,i) => {
       const r = i+1, got = st.items.includes(r), rare = r >= st.tal_rank;
       return `<div class="aGal ${got?'got':''} ${rare?'rare':''} ${r>=10?'leg':''}">
-        <span class="aGalN">${r}</span><span class="aGalT">${got?nm:"???"}</span></div>`;
+        <span class="aGalS">${got?alcSym(st,r):"?"}</span>
+        <span class="aGalT">${got?nm:"???"}</span></div>`;
     }).join("");
   }
   function alcTalismans(){
     const st = GS.S.alchemy, t = $("alcTalismans");
     if (!st.talismans.length){
-      t.innerHTML = `<small class="alcEmpty">Слей редкую плитку (ранг ${st.tal_rank}+) — получишь талисман</small>`;
+      t.innerHTML = `<small class="alcEmpty">Слей эссенции до ранга ${st.tal_rank} ⚗️ — выплавишь талисман. Применить его можно в Шахте.</small>`;
       return;
     }
-    t.innerHTML = st.talismans.map((x,i) => {
-      const used = x.used, nm = st.ranks[x.rank-1];
-      return `<div class="aTal ${used?'used':''}"><span>${nm}</span>
-        <button ${used||st.boost_ready?'disabled':''} data-tal="${i}">${used?'использован':'Буст ×1.5'}</button></div>`;
-    }).join("");
-    t.querySelectorAll("[data-tal]").forEach(btn => btn.onclick = async () => {
-      const d = await Api.call("alchemy_boost",{idx:+btn.dataset.tal});
-      if (!d) return;
-      GS.set("S", d); alcRender(); Sfx.play("sparkle"); hap("ok");
-      UI.toast("Буст активен! Иди в Шахту за ×1.5 🪙", true);
-    });
+    t.innerHTML = st.talismans.map(x => {
+      const nm = st.ranks[x.rank-1];
+      return `<div class="aTal"><span>${alcSym(st,x.rank)} ${nm}</span>
+        <span class="aTalTtl">⏳ ${fmtLeft(x.left)}</span></div>`;
+    }).join("") + `<small class="alcEmpty">Активируй талисман в Шахте кнопкой 🔮 — копка даст ×${st.boost} 🪙</small>`;
+  }
+  function fmtLeft(sec){
+    sec = Math.max(0, sec|0);
+    const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
+    return h > 0 ? h+"ч "+m+"м" : m+"м";
   }
   async function alcMove(dir){
     if (!AL || AL.busy) return;
-    if (GS.S.alchemy.moves <= 0){ UI.toast("Ходы кончились — приходи завтра!"); return; }
+    if (GS.S.alchemy.locked){
+      UI.toast("🔒 Талисман дня добыт — приходи завтра!"); Sfx.play("err"); hap("bad"); return;
+    }
     AL.busy = true;
     const d = await Api.call("alchemy_move",{move:dir});
     AL.busy = false;
     if (!d) return;
+    const merges = d.merges || [], spawned = d.spawned, newItem = d.new_item;
     GS.set("S", d); alcRender();
     if (d.blocked){ Sfx.play("err"); hap("bad"); return; }
     Sfx.play("tap"); hap("light");
-    if (d.spawned){ const [r,c]=d.spawned, el=alcCell(r,c);
+    // анимация слияний
+    if (merges.length){
+      Sfx.play("pop"); 
+      merges.forEach(([r,c]) => { const el=alcCell(r,c);
+        if (el){ el.classList.add("merge"); setTimeout(()=>el.classList.remove("merge"),420); } });
+    }
+    // анимация спавна
+    if (spawned){ const [r,c]=spawned, el=alcCell(r,c);
       if (el){ el.classList.add("pop"); setTimeout(()=>el.classList.remove("pop"),320); } }
-    if (d.new_item){
+    if (newItem){
       UI.confetti(); Sfx.play("fanfare"); hap("ok");
-      UI.notify("✨", "Новый редкий: " + GS.S.alchemy.ranks[d.new_item-1] + "!");
+      UI.notify("⚗️", "Талисман выплавлен: " + GS.S.alchemy.ranks[newItem-1] + "! Примени его в Шахте 🔮");
     }
   }
   function alcBind(){
@@ -1027,9 +1044,53 @@ window.Games = (() => {
     AL = null; $("alchemyOv").classList.remove("on"); UI.render();
   }
 
+  /* ---------- ТАЛИСМАНЫ В ШАХТЕ ---------- */
+  function mineTalCount(){
+    const st = GS.S && GS.S.alchemy;
+    return st && st.talismans ? st.talismans.length : 0;
+  }
+  function mineTalRefreshBadge(){
+    const b = $("mineTalBadge"), n = mineTalCount();
+    if (!b) return;
+    b.textContent = n;
+    b.parentElement.classList.toggle("has", n>0);
+  }
+  function openMineTal(){
+    mineTalRender();
+    $("mineTalOv").classList.add("show");
+  }
+  function closeMineTal(){ $("mineTalOv").classList.remove("show"); }
+  function mineTalRender(){
+    const st = GS.S && GS.S.alchemy, list = $("mineTalList");
+    if (!st){ list.innerHTML = ""; return; }
+    if (st.boost_ready){
+      list.innerHTML = `<div class="mineTalActive">⚡ Буст ×${st.boost} активен!<br>Копай — следующая выплата умножится.</div>`;
+      return;
+    }
+    if (!st.talismans.length){
+      list.innerHTML = `<small class="alcEmpty">Пусто. Выплавь талисман в Алхимике ⚗️ (доведи эссенцию до ранга ${st.tal_rank}).</small>`;
+      return;
+    }
+    list.innerHTML = st.talismans.map(x => {
+      const nm = st.ranks[x.rank-1], sym = (st.syms&&st.syms[x.rank-1])||"";
+      return `<div class="aTal"><span>${sym} ${nm} <small class="aTalTtl">⏳ ${fmtLeft(x.left)}</small></span>
+        <button data-tal="${x.idx}">Буст ×${st.boost}</button></div>`;
+    }).join("");
+    list.querySelectorAll("[data-tal]").forEach(btn => btn.onclick = async () => {
+      const d = await Api.call("alchemy_boost",{idx:+btn.dataset.tal});
+      if (!d) return;
+      GS.set("S", d); mineTalRender(); mineTalRefreshBadge();
+      if (typeof mineRenderCtl === "function") mineRenderCtl();
+      Sfx.play("sparkle"); hap("ok");
+      UI.toast("⚡ Буст ×"+GS.S.alchemy.boost+" готов — копай!", true);
+      setTimeout(closeMineTal, 700);
+    });
+  }
+
   return { bind, startCatch, closeCatch, exitCatch, startSimon, closeSimon, exitSimon, runCatch,
            startFishing, closeFishing, exitFishing,
            startMine, exitMine,
+           openMineTal, closeMineTal,
            startAlchemy, exitAlchemy,
            get G(){ return G } };
 })();

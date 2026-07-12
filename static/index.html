@@ -11,7 +11,7 @@
 <script src="/static/js/lib/FBXLoader.js?v=20260708d"></script>
 <script src="/static/js/lib/GLTFLoader.js?v=20260708d"></script>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Manrope:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/main.css?v=20260711g">
+<link rel="stylesheet" href="/static/css/main.css?v=20260712a">
 </head>
 <body data-room="living" data-mode="boot">
 
@@ -202,6 +202,7 @@
   <div class="mFlash" id="mFlash"></div>
   <div class="gHud"><span class="font-d" style="font-size:13px">ШАХТА УДАЧИ ⛏</span>
     <span class="gScore" id="mCoins">0 🪙</span>
+    <button class="mineTalBtn" id="mineTalBtn" onclick="Games.openMineTal()">🔮<span class="mineTalBadge" id="mineTalBadge">0</span></button>
     <button class="gExit" onclick="Games.exitMine()">✕</button></div>
   <div class="mineWrap">
     <div class="minePicks" id="mPicks"></div>
@@ -225,14 +226,22 @@
     <span class="gScore" id="alcCoins">0 🪙</span>
     <button class="gExit" onclick="Games.exitAlchemy()">✕</button>
   </div>
+  <div class="alcSmoke" id="alcSmoke"></div>
   <div class="alcWrap">
     <div class="alcStats">
       <span>Ходы <b id="alcMoves">0</b></span>
       <span>Рекорд <b id="alcBest">0</b></span>
       <span>🔥 <b id="alcStreak">0</b></span>
-      <span>Сегодня <b id="alcCap">0/60</b></span>
+      <span>Эссенция <b id="alcCap">0/60</b></span>
     </div>
-    <div class="alcBoard" id="alcBoard"></div>
+    <div class="alcBoardWrap">
+      <div class="alcBoard" id="alcBoard"></div>
+      <div class="alcLock" id="alcLock">
+        <div class="alcLockIco">🔒</div>
+        <div class="alcLockT">Талисман дня добыт!</div>
+        <div class="alcLockS">Котёл остыл. Возвращайся завтра за новым талисманом.<br>Готовый талисман примени в <b>Шахте</b> ⛏</div>
+      </div>
+    </div>
     <div class="alcPad">
       <button data-dir="up">▲</button>
       <div class="alcPadRow">
@@ -241,10 +250,20 @@
         <button data-dir="right">▶</button>
       </div>
     </div>
-    <div class="alcBoost" id="alcBoost">⚡ БУСТ ШАХТЫ ГОТОВ ×1.5 — иди копать!</div>
-    <div class="alcSec"><div class="alcSecT">КОЛЛЕКЦИЯ</div><div class="alcGallery" id="alcGallery"></div></div>
-    <div class="alcSec"><div class="alcSecT">ТАЛИСМАНЫ</div><div class="alcTalismans" id="alcTalismans"></div></div>
+    <div class="alcGoal" id="alcGoal">Слей эссенции до ранга <b id="alcGoalR">9</b> ⚗️ — получишь <b>талисман</b> для буста Шахты ×1.5</div>
+    <div class="alcSec"><div class="alcSecT">КОЛЛЕКЦИЯ ЭССЕНЦИЙ</div><div class="alcGallery" id="alcGallery"></div></div>
+    <div class="alcSec"><div class="alcSecT">ТАЛИСМАНЫ В СУМКЕ</div><div class="alcTalismans" id="alcTalismans"></div></div>
     <button class="btn alcNewGame" id="alcNewGame" style="display:none">🔄 НОВАЯ ИГРА</button>
+  </div>
+</div>
+
+<!-- ОКНО ТАЛИСМАНОВ В ШАХТЕ -->
+<div class="overlay" id="mineTalOv">
+  <div class="modal glass mineTalModal">
+    <button class="vsClose" onclick="Games.closeMineTal()">✕</button>
+    <div class="mineTalHd font-d">🔮 ТАЛИСМАНЫ АЛХИМИКА</div>
+    <div class="mineTalSub">Активируй талисман — следующая копка Шахты даст ×1.5 🪙.<br>Талисманы живут 24 часа после выплавки.</div>
+    <div class="mineTalList" id="mineTalList"></div>
   </div>
 </div>
 
@@ -300,7 +319,7 @@
 <script src="/static/js/character/hero.js?v=20260711a"></script>
 <script src="/static/js/character/animator.js?v=20260711b"></script>
 <script src="/static/js/game/ui.js?v=20260711d"></script>
-<script src="/static/js/game/games.js?v=20260711g"></script>
+<script src="/static/js/game/games.js?v=20260712a"></script>
 <script src="/static/js/game/arena.js?v=20260708d"></script>
 <script src="/static/js/game/main.js?v=20260711c"></script>
 </body>
