@@ -542,25 +542,20 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
   box-shadow:inset 2px 2px 0 rgba(255,255,255,.28), inset -2px -2px 0 rgba(0,0,0,.32),
     2px 2px 0 rgba(0,0,0,.4)}
 @keyframes slotMerge{0%{transform:scale(1)}28%{transform:scale(1.2);filter:brightness(2.2)}100%{transform:scale(1)}}
-/* ---- объёмный кубик-кирка по рангам ---- */
-.pk{position:relative;width:74%;aspect-ratio:1;display:block;border-radius:9px;
-  background:linear-gradient(150deg,var(--c1),var(--c2) 52%,var(--c3));
-  box-shadow:inset 2px 2px 0 rgba(255,255,255,.5), inset -3px -3px 0 rgba(0,0,0,.42),
-    3px 3px 0 rgba(8,6,16,.6);
-  overflow:hidden;transition:transform .12s}
-.pk::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;
-  background:linear-gradient(118deg,transparent 38%,rgba(255,255,255,.6) 50%,transparent 62%);
-  transform:translateX(-130%);animation:pkSheen 2.8s ease-in-out infinite}
-@keyframes pkSheen{0%,62%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
-.pkTool{position:absolute;inset:13%;z-index:1;color:rgba(18,12,2,.85);
-  filter:drop-shadow(0 1px 0 rgba(255,255,255,.5))}
-.pkTool svg{width:100%;height:100%;display:block}
+/* ---- кирка: пиксельный блок материала + кирка (стиль Minecraft) ---- */
+.pk{position:relative;width:80%;aspect-ratio:1;display:block;border-radius:5px;
+  background:center/100% 100% no-repeat;image-rendering:pixelated;
+  box-shadow:3px 3px 0 rgba(8,6,16,.6);transition:transform .12s}
 /* ранги: дерево → камень → железо → золото → алмаз */
-.t-w{--c1:#d2a86e;--c2:#9c6a32;--c3:#6c471d}
-.t-s{--c1:#c6c8ce;--c2:#8c8f97;--c3:#5c5f67}
-.t-i{--c1:#f2f4f8;--c2:#bcc0c8;--c3:#7d818a}
-.t-g{--c1:#ffeaa0;--c2:#f6b21a;--c3:#a9680a;filter:drop-shadow(0 0 5px rgba(255,196,52,.75))}
-.t-d{--c1:#9af7ee;--c2:#33c7b8;--c3:#0e8d80;filter:drop-shadow(0 0 7px rgba(74,237,219,.9))}
+.t-w{background-image:url(/static/mc/pick_wood.png)}
+.t-s{background-image:url(/static/mc/pick_stone.png)}
+.t-i{background-image:url(/static/mc/pick_iron.png)}
+.t-g{background-image:url(/static/mc/pick_gold.png);
+  box-shadow:0 0 0 1px rgba(255,215,64,.4),3px 3px 0 rgba(8,6,16,.6);
+  filter:drop-shadow(0 0 4px rgba(255,196,52,.6))}
+.t-d{background-image:url(/static/mc/pick_diamond.png);
+  box-shadow:0 0 0 1px rgba(74,237,219,.45),3px 3px 0 rgba(8,6,16,.6);
+  filter:drop-shadow(0 0 6px rgba(74,237,219,.8))}
 .dmg{position:absolute;right:-3px;bottom:-4px;min-width:15px;height:15px;padding:0 3px;z-index:3;
   border-radius:5px;display:flex;align-items:center;justify-content:center;
   font-size:10px;font-weight:800;background:#0b1020;color:#fff;
@@ -662,11 +657,11 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
   40%{transform:translate(5px,-2px)}50%{transform:translate(-4px,2px)}
   60%{transform:translate(3px,-1px)}70%{transform:translate(-2px,1px)}
   80%{transform:translate(2px,0)}90%{transform:translate(-1px,0)}}
-.mChest{aspect-ratio:1.35;border-radius:7px;background:linear-gradient(180deg,#9a6b3f,#7a4f2a);
-  border:1px solid rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;
-  font-size:15px;position:relative;transition:transform .2s}
-.mChest.open{transform:scale(1.12);background:linear-gradient(180deg,#ffd76a,#caa53d);
-  animation:chestPop .4s}
+.mChest{aspect-ratio:1.35;border-radius:6px;background:url(/static/mc/chest_closed.png) center/100% 100% no-repeat;
+  image-rendering:pixelated;position:relative;transition:transform .2s;
+  filter:drop-shadow(2px 3px 0 rgba(8,6,16,.55))}
+.mChest.open{transform:scale(1.12);background-image:url(/static/mc/chest_open.png);
+  animation:chestPop .4s;filter:drop-shadow(0 0 10px rgba(255,215,64,.85))}
 @keyframes chestPop{0%{transform:scale(.7)}60%{transform:scale(1.25)}100%{transform:scale(1.12)}}
 .mPop{position:absolute;left:50%;top:0;transform:translateX(-50%);font-size:11px;
   color:#fff;pointer-events:none;animation:minePop .9s forwards;white-space:nowrap;

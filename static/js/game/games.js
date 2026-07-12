@@ -533,10 +533,7 @@ window.Games = (() => {
 
   const mineCell = (c, r) => $("mBoard").children[r*5 + c];
   const mineSlot = (c, r) => $("mPicks").children[r*5 + c];
-  const PICK_SVG = `<svg class="pkTool" viewBox="0 0 32 32" fill="none" stroke="currentColor"
-    stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M16 29 L16 9"/><path d="M16 9 Q5 7 6 18"/><path d="M16 9 Q27 7 26 18"/></svg>`;
-  const pickHTML = t => `<span class="pk t-${t}">${PICK_SVG}<b class="dmg d-${t}">${MINE_DMG[t]}</b></span>`;
+  const pickHTML = t => `<span class="pk t-${t}"></span><b class="dmg d-${t}">${MINE_DMG[t]}</b>`;
   const fmtM = v => "x" + (+v.toFixed(2)).toString();
 
   /* ---- мощные эффекты: луч, вспышка, тряска ---- */
@@ -564,7 +561,7 @@ window.Games = (() => {
     $("mBoard").innerHTML = Array.from({length:25}, () =>
       `<div class="mCell hid">▦</div>`).join("");
     $("mChests").innerHTML = Array.from({length:5}, () =>
-      `<div class="mChest">🔒</div>`).join("");
+      `<div class="mChest"></div>`).join("");
     $("mMult").textContent = "\u00a0";
     $("mMult").className = "mineMult font-d";
   }
@@ -852,7 +849,7 @@ window.Games = (() => {
       if (d.chests[c]) setTimeout(() => {
         if (!MN || MN.over) return;
         const ch = $("mChests").children[c];
-        ch.textContent = "🪙"; ch.classList.add("open");
+        ch.textContent = ""; ch.classList.add("open");
         minePop(ch, "+x0.5", "ore");
         mineSparks(ch, "#ffe27a", 10);
         mineWord("СУНДУК! +x0.5", "gold");
