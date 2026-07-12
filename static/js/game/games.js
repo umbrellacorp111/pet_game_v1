@@ -926,9 +926,8 @@ window.Games = (() => {
   }
 
   /* ---------- АЛХИМИК (2048-merge) ---------- */
-  const ALC_SIZE = 4;
+  const ALC_SIZE = 4, ALC_PAD = 10, ALC_GAP = 8;
   let AL = null;
-  const alcCell = (r,c) => $("alcBoard").children[r*ALC_SIZE + c];
   function hasMove(b){
     for (let r=0;r<ALC_SIZE;r++) for (let c=0;c<ALC_SIZE;c++){
       const v = b[r] && b[r][c]; if (!v) return true;
@@ -938,6 +937,54 @@ window.Games = (() => {
     return false;
   }
   function alcSym(st, r){ return (st.syms && st.syms[r-1]) || ""; }
+  // геометрия слоя плиток
+  function alcCellSize(){
+    const inner = $("alcTiles").clientWidth || 300;
+    return (inner - ALC_GAP*(ALC_SIZE-1)) / ALC_SIZE;
+  }
+  function alcXY(r, c, sz){ return { x: c*(sz+ALC_GAP), y: r*(sz+ALC_GAP) }; }
+  // симуляция хода на клиенте: движения плиток + итоговая доска (для анимации)
+  function alcSim(board, dir){
+    const n = ALC_SIZE, cols = (dir==="left"||dir==="right"), rev = (dir==="right"||dir==="down");
+    const nb = Array.from({length:n}, ()=>Array(n).fill(0));
+    const moves = [], merges = [];
+    for (let i=0;i<n;i++){
+      let line = [];
+      for (let k=0;k<n;k++){
+        const r = cols? i : k, c = cols? k : i;
+        line.push({v: board[r][c], r, c});
+      }
+      if (rev) line.reverse();
+      const nums = line.filter(x=>x.v);
+      const out = [];
+      let j = 0;
+      while (j < nums.length){
+        if (j+1 < nums.length && nums[j].v === nums[j+1].v){
+          out.push({v: nums[j].v+1, src:[nums[j], nums[j+1]], merged:true}); j += 2;
+        } else { out.push({v: nums[j].v, src:[nums[j]], merged:false}); j++; }
+      }
+      for (let idx=0; idx<out.length; idx++){
+        const realIdx = rev ? (n-1-idx) : idx;
+        const r = cols? i : realIdx, c = cols? realIdx : i;
+        nb[r][c] = out[idx].v;
+        out[idx].src.forEach(s => moves.push({fromR:s.r, fromC:s.c, toR:r, toC:c, v:s.v}));
+        if (out[idx].merged) merges.push([r,c]);
+      }
+    }
+    const moved = JSON.stringify(nb) !== JSON.stringify(board);
+    return { nb, moves, merges, moved };
+  }
+  // построить одну плитку (внешний слой = позиция, внутренний = визуал)
+  function alcMakeTile(st, v, sz){
+    const wrap = document.createElement("div");
+    wrap.className = "aTile";
+    wrap.style.width = wrap.style.height = sz + "px";
+    const cell = document.createElement("div");
+    cell.className = "aCell r" + v + (v>=st.tal_rank ? " rare" : "");
+    cell.innerHTML = `<span class="aSym">${alcSym(st,v)}</span><span class="aNum">${v}</span>`;
+    wrap.appendChild(cell);
+    return wrap;
+  }
   function alcRender(){
     const st = GS.S && GS.S.alchemy; if (!st) return;
     $("alcMoves").textContent = st.locked ? "🔒" : (st.moves || 0);
@@ -946,23 +993,59 @@ window.Games = (() => {
     $("alcCoins").textContent = (GS.S.coins||0) + " 🪙";
     $("alcCap").textContent = st.day_coins + "/" + st.daily_cap;
     $("alcGoalR").textContent = st.tal_rank;
-    const board = $("alcBoard");
-    if (board.children.length !== ALC_SIZE*ALC_SIZE)
-      board.innerHTML = Array.from({length:ALC_SIZE*ALC_SIZE},
-        () => '<div class="aCell"></div>').join("");
-    const b = st.board || [];
-    for (let r=0;r<ALC_SIZE;r++) for (let c=0;c<ALC_SIZE;c++){
-      const v = (b[r] && b[r][c]) || 0;
-      const el = alcCell(r,c);
-      el.className = "aCell" + (v ? " r"+v : "") + (v>=st.tal_rank ? " rare" : "");
-      el.innerHTML = v ? `<span class="aSym">${alcSym(st,v)}</span><span class="aNum">${v}</span>` : "";
-      el.dataset.rank = v;
-    }
-    // ЛОК дня: талисман уже добыт — доска гаснет, пад блокируется
+    // фоновые слоты (один раз)
+    const grid = $("alcGrid");
+    if (grid.children.length !== ALC_SIZE*ALC_SIZE)
+      grid.innerHTML = Array.from({length:ALC_SIZE*ALC_SIZE},
+        () => '<div class="aCellBg"></div>').join("");
+    alcRenderTiles(AL && AL.fx);
     $("alcLock").classList.toggle("on", !!st.locked);
     $("alchemyOv").classList.toggle("locked", !!st.locked);
     alcGallery(); alcTalismans();
+    const b = (AL && AL.board) || st.board || [];
     $("alcNewGame").style.display = (!st.locked && !hasMove(b)) ? "block" : "none";
+  }
+  // статичная отрисовка плиток по AL.board (+ эффекты pop/merge)
+  function alcRenderTiles(fx){
+    const st = GS.S && GS.S.alchemy; if (!st) return;
+    const layer = $("alcTiles"); layer.innerHTML = "";
+    const b = (AL && AL.board) || st.board || [];
+    const sz = alcCellSize();
+    const merged = (fx && fx.merges) || [], spawned = (fx && fx.spawned);
+    for (let r=0;r<ALC_SIZE;r++) for (let c=0;c<ALC_SIZE;c++){
+      const v = (b[r] && b[r][c]) || 0; if (!v) continue;
+      const t = alcMakeTile(st, v, sz);
+      const {x,y} = alcXY(r,c,sz);
+      t.style.transform = `translate(${x}px,${y}px)`;
+      layer.appendChild(t);
+      const inner = t.firstChild;
+      if (spawned && spawned[0]===r && spawned[1]===c){
+        inner.classList.add("pop"); setTimeout(()=>inner.classList.remove("pop"),340);
+      }
+      if (merged.some(m=>m[0]===r && m[1]===c)){
+        inner.classList.add("merge"); setTimeout(()=>inner.classList.remove("merge"),440);
+      }
+    }
+  }
+  // анимация скольжения: рисуем плитки на старых местах и едем в новые
+  function alcAnimateSlide(sim){
+    const st = GS.S && GS.S.alchemy; if (!st) return;
+    const layer = $("alcTiles"); layer.innerHTML = "";
+    const sz = alcCellSize();
+    const tiles = sim.moves.map(m => {
+      const t = alcMakeTile(st, m.v, sz);
+      const p0 = alcXY(m.fromR, m.fromC, sz);
+      t.style.transform = `translate(${p0.x}px,${p0.y}px)`;
+      layer.appendChild(t);
+      return {t, m};
+    });
+    void layer.offsetHeight; // reflow — зафиксировать стартовые позиции
+    requestAnimationFrame(() => {
+      tiles.forEach(({t,m}) => {
+        const p1 = alcXY(m.toR, m.toC, sz);
+        t.style.transform = `translate(${p1.x}px,${p1.y}px)`;
+      });
+    });
   }
   function alcGallery(){
     const st = GS.S.alchemy, g = $("alcGallery");
@@ -990,54 +1073,83 @@ window.Games = (() => {
     const h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60);
     return h > 0 ? h+"ч "+m+"м" : m+"м";
   }
+  function alcSleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
   async function alcMove(dir){
     if (!AL || AL.busy) return;
-    if (GS.S.alchemy.locked){
+    const st = GS.S.alchemy;
+    if (st.locked){
       UI.toast("🔒 Талисман дня добыт — приходи завтра!"); Sfx.play("err"); hap("bad"); return;
     }
+    if (dir === "new"){          // рестарт проигранной доски
+      AL.busy = true;
+      const d = await Api.call("alchemy_move",{move:"new"});
+      AL.busy = false;
+      if (!d) return;
+      GS.set("S", d); AL.board = alcCloneBoard(GS.S.alchemy.board); AL.fx = null;
+      alcRender(); Sfx.play("tap"); hap("light");
+      return;
+    }
+    // локальная симуляция для анимации
+    const sim = alcSim(AL.board, dir);
+    if (!sim.moved){ Sfx.play("err"); hap("bad"); alcNudge(dir); return; }
     AL.busy = true;
-    const d = await Api.call("alchemy_move",{move:dir});
-    AL.busy = false;
-    if (!d) return;
-    const merges = d.merges || [], spawned = d.spawned, newItem = d.new_item;
-    GS.set("S", d); alcRender();
-    if (d.blocked){ Sfx.play("err"); hap("bad"); return; }
+    $("alcSwipeHint").classList.add("hide");
     Sfx.play("tap"); hap("light");
-    // анимация слияний
-    if (merges.length){
-      Sfx.play("pop"); 
-      merges.forEach(([r,c]) => { const el=alcCell(r,c);
-        if (el){ el.classList.add("merge"); setTimeout(()=>el.classList.remove("merge"),420); } });
-    }
-    // анимация спавна
-    if (spawned){ const [r,c]=spawned, el=alcCell(r,c);
-      if (el){ el.classList.add("pop"); setTimeout(()=>el.classList.remove("pop"),320); } }
-    if (newItem){
+    alcAnimateSlide(sim);
+    if (sim.merges.length) setTimeout(()=>Sfx.play("pop"), 120);
+    // ход на сервере (источник правды) + ждём завершения анимации
+    const [d] = await Promise.all([ Api.call("alchemy_move",{move:dir}), alcSleep(160) ]);
+    AL.busy = false;
+    if (!d){ alcRenderTiles(); return; }
+    if (d.blocked){ GS.set("S", d); AL.board = alcCloneBoard(GS.S.alchemy.board); alcRenderTiles(); return; }
+    GS.set("S", d);
+    AL.board = alcCloneBoard(GS.S.alchemy.board);
+    AL.fx = { merges: d.merges || [], spawned: d.spawned };
+    alcRender();
+    if (d.new_item){
       UI.confetti(); Sfx.play("fanfare"); hap("ok");
-      UI.notify("⚗️", "Талисман выплавлен: " + GS.S.alchemy.ranks[newItem-1] + "! Примени его в Шахте 🔮");
+      UI.notify("⚗️", "Талисман выплавлен: " + GS.S.alchemy.ranks[d.new_item-1] + "! Примени его в Шахте 🔮");
     }
+  }
+  function alcCloneBoard(b){ return (b||[]).map(row=>row.slice()); }
+  // лёгкий «толчок» доски при заблокированном направлении
+  function alcNudge(dir){
+    const el = $("alcTiles");
+    const d = {left:"-6px,0",right:"6px,0",up:"0,-6px",down:"0,6px"}[dir] || "0,0";
+    el.style.transition = "transform .08s";
+    el.style.transform = `translate(${d})`;
+    setTimeout(()=>{ el.style.transform = "translate(0,0)";
+      setTimeout(()=>{ el.style.transition=""; el.style.transform=""; },90); }, 90);
   }
   function alcBind(){
     if (AL && AL.sw) return;
-    const ov = $("alchemyOv");
+    const board = $("alcBoard");
     let sx=0, sy=0, trk=false;
-    ov.addEventListener("pointerdown", e=>{ sx=e.clientX; sy=e.clientY; trk=true; });
-    ov.addEventListener("pointerup", e=>{
+    const start = e => { const p = e.touches? e.touches[0] : e;
+      sx=p.clientX; sy=p.clientY; trk=true; };
+    const end = e => {
       if (!trk) return; trk=false;
-      const dx=e.clientX-sx, dy=e.clientY-sy;
-      if (Math.max(Math.abs(dx),Math.abs(dy)) < 24) return;
+      const p = e.changedTouches? e.changedTouches[0] : e;
+      const dx=p.clientX-sx, dy=p.clientY-sy;
+      if (Math.max(Math.abs(dx),Math.abs(dy)) < 20) return;
       if (Math.abs(dx) > Math.abs(dy)) alcMove(dx>0?"right":"left");
       else alcMove(dy>0?"down":"up");
-    });
-    ov.querySelectorAll("[data-dir]").forEach(b=>b.onclick=()=>alcMove(b.dataset.dir));
+    };
+    board.addEventListener("pointerdown", start);
+    board.addEventListener("pointerup", end);
+    board.addEventListener("touchstart", start, {passive:true});
+    board.addEventListener("touchend", end, {passive:true});
     $("alcNewGame").onclick = ()=>alcMove("new");
     if (AL) AL.sw = true;
   }
   function startAlchemy(){
     try {
-      AL = {busy:false, sw:false};
+      AL = {busy:false, sw:false, board:null, fx:null};
       $("alchemyOv").classList.add("on");
+      AL.board = alcCloneBoard(GS.S && GS.S.alchemy && GS.S.alchemy.board);
       alcRender(); alcBind();
+      // геометрия становится валидной после показа — перерисуем плитки
+      requestAnimationFrame(()=>alcRenderTiles());
     } catch(e){ console.error("[startAlchemy]", e) }
   }
   function exitAlchemy(){
