@@ -533,7 +533,7 @@ window.Games = (() => {
 
   const mineCell = (c, r) => $("mBoard").children[r*5 + c];
   const mineSlot = (c, r) => $("mPicks").children[r*5 + c];
-  const pickHTML = t => `<span class="pk pick-${t}"></span><b class="dmg d-${t}">${MINE_DMG[t]}</b>`;
+  const pickHTML = t => `<span class="pk t-${t}">⛏</span><b class="dmg d-${t}">${MINE_DMG[t]}</b>`;
   const fmtM = v => "x" + (+v.toFixed(2)).toString();
 
   function mineReset(){
@@ -541,15 +541,15 @@ window.Games = (() => {
     $("mPicks").innerHTML = Array.from({length:15}, () =>
       `<div class="mSlot"></div>`).join("");
     $("mBoard").innerHTML = Array.from({length:25}, () =>
-      `<div class="mCell hid"></div>`).join("");
+      `<div class="mCell hid">▦</div>`).join("");
     $("mChests").innerHTML = Array.from({length:5}, () =>
-      `<div class="mChest"></div>`).join("");
+      `<div class="mChest">🔒</div>`).join("");
     $("mMult").textContent = "\u00a0";
     $("mMult").className = "mineMult font-d";
   }
 
   function mineRenderCtl(){
-    $("mCoins").textContent = (GS.S ? GS.S.coins : 0);
+    $("mCoins").textContent = (GS.S ? GS.S.coins : 0) + " 🪙";
     $("mBets").innerHTML = MINE_BETS.map(b =>
       `<button class="mBet ${b===MN.bet?'on':''}" data-b="${b}">${b}</button>`).join("");
     $("mBets").querySelectorAll(".mBet").forEach(el => el.onclick = () => {
@@ -557,7 +557,7 @@ window.Games = (() => {
       MN.bet = +el.dataset.b; Sfx.play("tap"); hap("light"); mineRenderCtl();
     });
     $("mSpin").disabled = !!MN.busy;
-    $("mSpin").textContent = MN.busy ? "КОПАЕМ…" : "КОПАТЬ · " + MN.bet;
+    $("mSpin").textContent = MN.busy ? "⛏ КОПАЕМ…" : "⛏ КОПАТЬ · " + MN.bet + " 🪙";
   }
 
   function minePop(cell, text, cls){
@@ -602,7 +602,7 @@ window.Games = (() => {
     const cell = mineCell(c, 0); if (!cell) return;
     const axe = document.createElement("div");
     axe.className = "mAxe";
-    axe.innerHTML = `<span class="pk pick-${tier}"></span><b class="dmg d-${tier}">${dmg}</b>`;
+    axe.innerHTML = `<span class="pk t-${tier}">⛏</span><b class="dmg d-${tier}">${dmg}</b>`;
     $("mBoard").appendChild(axe);
     axe.style.transform =
       `translate(${cell.offsetLeft + 3}px, ${cell.offsetTop - cell.offsetHeight*1.1}px)`;
@@ -792,7 +792,7 @@ window.Games = (() => {
             Sfx.play("coin"); hap("light");
             if (type === "gold") mineWord("ЗОЛОТО!", "gold");
             if (type === "diam"){
-              mineWord("АЛМАЗ!", "diam");
+              mineWord("АЛМАЗ! 💎", "diam");
               $("mBoard").classList.add("quake");
               setTimeout(() => $("mBoard").classList.remove("quake"), 320);
               hap("medium");
@@ -805,7 +805,7 @@ window.Games = (() => {
       if (d.chests[c]) setTimeout(() => {
         if (!MN || MN.over) return;
         const ch = $("mChests").children[c];
-        ch.classList.add("open");
+        ch.textContent = "🪙"; ch.classList.add("open");
         minePop(ch, "+x0.5", "ore");
         mineSparks(ch, "#ffe27a", 10);
         mineWord("СУНДУК! +x0.5", "gold");
@@ -818,7 +818,7 @@ window.Games = (() => {
 
     /* жила: много руды за спин */
     setTimeout(() => {
-      if (MN && !MN.over && oreCount >= 4) mineWord("РУДНАЯ ЖИЛА!", "diam");
+      if (MN && !MN.over && oreCount >= 4) mineWord("РУДНАЯ ЖИЛА! ⛏", "diam");
     }, tEnd + 100);
 
     /* 5. итог */
@@ -827,16 +827,16 @@ window.Games = (() => {
       GS.set("S", d); UI.render();
       const m = $("mMult");
       if (d.payout > 0){
-        m.textContent = "ВЫИГРЫШ " + d.payout + " (x" + d.mult + ")";
+        m.textContent = "ВЫИГРЫШ " + d.payout + " 🪙 (x" + d.mult + ")";
         m.className = "mineMult font-d win";
         if (d.payout >= d.bet*3){
-          mineWord("КУШ!", "win");
+          mineWord("КУШ! 🤑", "win");
           UI.confetti();
           Sfx.play("fanfare");
         } else Sfx.play("win");
         hap("ok");
       } else {
-        m.textContent = "Пусто… порода";
+        m.textContent = "Пусто… порода 🪨";
         m.className = "mineMult font-d lose";
         Sfx.play("bad");
       }
