@@ -32,6 +32,9 @@ try {
     window.tg = window.Telegram.WebApp;
     tg.ready(); tg.expand();
     tg.setHeaderColor?.("#07051A"); tg.setBackgroundColor?.("#07051A");
+    // не даём Telegram сворачивать приложение при свайпе вниз (Bot API 7.7+)
+    try { tg.disableVerticalSwipes?.(); } catch(e){}
+    try { tg.isVerticalSwipesEnabled = false; } catch(e){}
   }
 } catch(e){ console.warn("[TG] init error", e) }
 window.hap = t => { try {

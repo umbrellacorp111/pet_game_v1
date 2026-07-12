@@ -1139,6 +1139,8 @@ window.Games = (() => {
     board.addEventListener("pointerup", end);
     board.addEventListener("touchstart", start, {passive:true});
     board.addEventListener("touchend", end, {passive:true});
+    // фолбэк: гасим скролл/жест «свернуть» пока палец на доске
+    board.addEventListener("touchmove", e => { if (trk) e.preventDefault(); }, {passive:false});
     $("alcNewGame").onclick = ()=>alcMove("new");
     if (AL) AL.sw = true;
   }
