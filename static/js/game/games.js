@@ -593,8 +593,8 @@ window.Games = (() => {
   /* ---- кирки и разрушение блоков ---- */
   const MINE_SHARD = {                       /* [цвет породы, цвет вкраплений] */
     dirt:["#9b6a3c","#7d5026"], stone:["#909298","#74767d"],
-    coal:["#8f9099","#33343a"], iron:["#8f9099","#d8af93"],
-    gold:["#8f9099","#f7d244"], diam:["#8f9099","#6fe3e1"],
+    coal:["#7a7b82","#4a4b52"], iron:["#8a8b92","#daa070"],
+    gold:["#7a7b82","#ffd740"], diam:["#6a7b82","#4aeddb"],
   };
   const MINE_TIER_GLOW = {w:"#b07a3e", s:"#9fa1a8", i:"#e8e9ee", g:"#ffd76a", d:"#7deeec"};
 
@@ -628,51 +628,71 @@ window.Games = (() => {
 
   function mineShatter(cell, type){
     const [rock, spot] = MINE_SHARD[type] || MINE_SHARD.stone;
-    cell.animate([{filter:"brightness(2.2)"},{filter:"brightness(1)"}], {duration:160});
+    const isOre = !!MINE_MULT[type];
+    /* вспышка блока */
+    cell.animate([
+      {filter:"brightness(1) saturate(1)"},
+      {filter:`brightness(2.5) saturate(1.8)${isOre ? ` drop-shadow(0 0 8px ${spot})` : ""}`},
+      {filter:"brightness(1) saturate(1)"},
+    ], {duration: isOre ? 300 : 160});
+    /* ударное кольцо */
     const ring = document.createElement("i");
     ring.className = "mRing";
+    ring.style.borderColor = isOre ? spot : "rgba(255,255,255,.85)";
     cell.appendChild(ring);
     setTimeout(() => ring.remove(), 450);
-    const isOre = !!MINE_MULT[type];
-    const n = isOre ? 12 : 8;
+    /* осколки породы */
+    const n = isOre ? 14 : 8;
     for (let i = 0; i < n; i++){
       const s = document.createElement("i");
       s.className = "mShard";
-      s.style.background = (isOre && i % 2) ? spot : rock;
+      s.style.background = (isOre && i % 3 === 0) ? spot : rock;
+      s.style.width = (isOre ? 4 + Math.random()*4 : 5 + Math.random()*3) + "px";
+      s.style.height = s.style.width;
+      s.style.borderRadius = Math.random() > .5 ? "50%" : "1px";
       cell.appendChild(s);
-      const a = Math.random()*Math.PI*2, dst = 18 + Math.random()*34;
+      const a = Math.random()*Math.PI*2, dst = 14 + Math.random()*38;
+      const dur = 400 + Math.random()*350;
       s.animate([
-        {transform:"translate(-50%,-50%) rotate(0)", opacity:1},
-        {transform:`translate(${Math.cos(a)*dst - 4}px, ${Math.sin(a)*dst - 16}px) rotate(${Math.random()*260-130}deg)`, opacity:0},
-      ], {duration:520 + Math.random()*280, easing:"cubic-bezier(.2,.7,.3,1)"})
+        {transform:"translate(-50%,-50%) rotate(0) scale(1)", opacity:1},
+        {transform:`translate(${Math.cos(a)*dst}px, ${Math.sin(a)*dst - 14}px) rotate(${Math.random()*360-180}deg) scale(.3)`, opacity:0},
+      ], {duration: dur, easing:"cubic-bezier(.2,.7,.3,1)"})
         .onfinish = () => s.remove();
     }
-    for (let i = 0; i < 5; i++){
+    /* пыль */
+    for (let i = 0; i < 4; i++){
       const p = document.createElement("i");
       p.className = "mDust";
+      if (isOre) p.style.background = spot;
       cell.appendChild(p);
-      const dx = (Math.random()-.5)*26;
+      const dx = (Math.random()-.5)*30;
       p.animate([
-        {transform:"translate(-50%,-50%)", opacity:.8},
-        {transform:`translate(${dx}px, ${26 + Math.random()*30}px)`, opacity:0},
-      ], {duration:650 + Math.random()*350, easing:"cubic-bezier(.4,0,.9,1)", delay: i*40})
+        {transform:"translate(-50%,-50%)", opacity:.7},
+        {transform:`translate(${dx}px, ${22 + Math.random()*28}px)`, opacity:0},
+      ], {duration:550 + Math.random()*300, easing:"cubic-bezier(.4,0,.9,1)", delay: i*35})
         .onfinish = () => p.remove();
     }
-    if (isOre) mineSparks(cell, spot, type === "diam" ? 12 : 8);
+    /* искры руды */
+    if (isOre) mineSparks(cell, spot, type === "diam" ? 14 : type === "gold" ? 10 : 7);
   }
 
   function mineSparks(el, color, n){
     for (let i = 0; i < n; i++){
       const s = document.createElement("i");
       s.className = "mSpark";
+      const sz = 3 + Math.random()*3;
+      s.style.width = sz + "px"; s.style.height = sz + "px";
       s.style.background = color;
-      s.style.boxShadow = `0 0 6px ${color}, 0 0 12px ${color}`;
+      s.style.boxShadow = `0 0 ${4+sz}px ${color}, 0 0 ${8+sz*2}px ${color}`;
       el.appendChild(s);
-      const a = Math.random()*Math.PI*2, dst = 24 + Math.random()*42;
+      const a = Math.random()*Math.PI*2, dst = 20 + Math.random()*48;
+      const dur = 500 + Math.random()*500;
       s.animate([
-        {transform:"translate(-50%,-50%) scale(1)", opacity:1},
-        {transform:`translate(${Math.cos(a)*dst}px, ${Math.sin(a)*dst - 20}px) scale(.2)`, opacity:0},
-      ], {duration:600 + Math.random()*400, easing:"cubic-bezier(.15,.8,.3,1)", delay: Math.random()*90})
+        {transform:"translate(-50%,-50%) scale(1.2)", opacity:1,
+         filter:`drop-shadow(0 0 4px ${color})`},
+        {transform:`translate(${Math.cos(a)*dst}px, ${Math.sin(a)*dst - 18}px) scale(.1)`, opacity:0,
+         filter:"drop-shadow(0 0 0px transparent)"},
+      ], {duration: dur, easing:"cubic-bezier(.12,.8,.3,1)", delay: Math.random()*80})
         .onfinish = () => s.remove();
     }
   }

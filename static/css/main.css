@@ -558,30 +558,54 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
   radial-gradient(circle 3px at 70% 22%, #a6a8ae 55%, transparent 56%),
   radial-gradient(circle 4px at 76% 68%, #74767d 55%, transparent 56%),
   radial-gradient(circle 3px at 34% 72%, #a6a8ae 55%, transparent 56%)}
-/* руды: камень с вкраплениями */
-.mCell.coal{background-color:#8f9099;background-image:
-  radial-gradient(circle 4px at 26% 30%, #33343a 60%, transparent 61%),
-  radial-gradient(circle 3px at 66% 20%, #2b2c31 60%, transparent 61%),
-  radial-gradient(circle 4px at 74% 66%, #33343a 60%, transparent 61%),
-  radial-gradient(circle 3px at 38% 72%, #26272c 60%, transparent 61%),
-  radial-gradient(circle 3px at 52% 46%, #33343a 60%, transparent 61%)}
-.mCell.iron{background-color:#8f9099;background-image:
-  radial-gradient(circle 4px at 26% 30%, #d8af93 60%, transparent 61%),
-  radial-gradient(circle 3px at 66% 20%, #e6c3a5 60%, transparent 61%),
-  radial-gradient(circle 4px at 74% 66%, #d8af93 60%, transparent 61%),
-  radial-gradient(circle 3px at 38% 72%, #c69a7b 60%, transparent 61%)}
-.mCell.gold{background-color:#8f9099;background-image:
-  radial-gradient(circle 4px at 26% 30%, #f7d244 60%, transparent 61%),
-  radial-gradient(circle 3px at 66% 20%, #ffe27a 60%, transparent 61%),
-  radial-gradient(circle 4px at 74% 66%, #f7d244 60%, transparent 61%),
-  radial-gradient(circle 3px at 38% 72%, #e0b92e 60%, transparent 61%),
-  radial-gradient(circle 3px at 54% 48%, #ffe27a 60%, transparent 61%)}
-.mCell.diam{background-color:#8f9099;background-image:
-  radial-gradient(circle 4px at 26% 30%, #6fe3e1 60%, transparent 61%),
-  radial-gradient(circle 3px at 66% 20%, #a2f3f1 60%, transparent 61%),
-  radial-gradient(circle 4px at 74% 66%, #6fe3e1 60%, transparent 61%),
-  radial-gradient(circle 3px at 38% 72%, #4cc9c7 60%, transparent 61%),
-  radial-gradient(circle 3px at 54% 48%, #a2f3f1 60%, transparent 61%)}
+
+/* ====== РУДЫ: глубина + свечение + мерцание ====== */
+@keyframes orePulse{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes oreShimmer{0%{background-position:0% 0%}100%{background-position:200% 200%}}
+
+/* — Уголь: тёмные вкрапления с тусклым свечением — */
+.mCell.coal{background-color:#7a7b82;
+  background-image:
+    radial-gradient(circle 5px at 24% 28%, #1a1b20 0%, transparent 55%),
+    radial-gradient(circle 4px at 62% 18%, #222328 0%, transparent 55%),
+    radial-gradient(circle 5px at 72% 64%, #1a1b20 0%, transparent 55%),
+    radial-gradient(circle 3px at 38% 70%, #252630 0%, transparent 55%),
+    radial-gradient(circle 4px at 50% 44%, #1e1f24 0%, transparent 55%),
+    radial-gradient(circle 2px at 30% 50%, rgba(100,100,120,.4) 0%, transparent 100%);
+  box-shadow:inset 0 0 8px rgba(0,0,0,.3)}
+
+/* — Железо: рыжеватые вкрапления с тёплым свечением — */
+.mCell.iron{background-color:#8a8b92;
+  background-image:
+    radial-gradient(circle 5px at 22% 26%, #c8835a 0%, rgba(200,131,90,.15) 55%, transparent 56%),
+    radial-gradient(circle 4px at 64% 20%, #daa070 0%, rgba(218,160,112,.15) 55%, transparent 56%),
+    radial-gradient(circle 5px at 70% 62%, #c8835a 0%, rgba(200,131,90,.15) 55%, transparent 56%),
+    radial-gradient(circle 3px at 36% 68%, #b87548 0%, rgba(184,117,72,.15) 55%, transparent 56%),
+    radial-gradient(circle 3px at 52% 44%, rgba(218,160,112,.6) 0%, transparent 100%);
+  box-shadow:inset 0 0 6px rgba(200,131,90,.15),0 0 4px rgba(200,131,90,.08);
+  animation:orePulse 3s ease-in-out infinite}
+
+/* — Золото: яркие жёлтые кристаллы с золотым свечением — */
+.mCell.gold{background-color:#7a7b82;
+  background-image:
+    radial-gradient(circle 5px at 22% 24%, #ffd740 0%, rgba(255,215,64,.25) 50%, transparent 55%),
+    radial-gradient(circle 4px at 60% 18%, #ffec80 0%, rgba(255,236,128,.2) 50%, transparent 55%),
+    radial-gradient(circle 5px at 68% 60%, #ffd740 0%, rgba(255,215,64,.25) 50%, transparent 55%),
+    radial-gradient(circle 4px at 34% 66%, #ffca28 0%, rgba(255,202,40,.2) 50%, transparent 55%),
+    radial-gradient(circle 3px at 50% 42%, rgba(255,215,64,.7) 0%, transparent 100%);
+  box-shadow:inset 0 0 8px rgba(255,215,64,.2),0 0 6px rgba(255,215,64,.12);
+  animation:orePulse 2.5s ease-in-out infinite}
+
+/* — Алмаз: бирюзовые кристаллы с ярким неоновым свечением — */
+.mCell.diam{background-color:#6a7b82;
+  background-image:
+    radial-gradient(circle 6px at 20% 22%, #4aeddb 0%, rgba(74,237,219,.3) 45%, transparent 52%),
+    radial-gradient(circle 5px at 58% 16%, #7af5eb 0%, rgba(122,245,235,.25) 45%, transparent 52%),
+    radial-gradient(circle 6px at 66% 58%, #4aeddb 0%, rgba(74,237,219,.3) 45%, transparent 52%),
+    radial-gradient(circle 4px at 32% 64%, #38d9c7 0%, rgba(56,217,199,.2) 45%, transparent 52%),
+    radial-gradient(circle 3px at 48% 40%, rgba(74,237,219,.8) 0%, transparent 100%);
+  box-shadow:inset 0 0 10px rgba(74,237,219,.25),0 0 8px rgba(74,237,219,.15),0 0 16px rgba(74,237,219,.06);
+  animation:orePulse 2s ease-in-out infinite}
 /* разбитый блок: тёмная выработка */
 .mCell.mined{background:#17171d!important;background-image:none!important;
   box-shadow:inset 0 4px 10px rgba(0,0,0,.65), inset 0 0 0 1px rgba(255,255,255,.03)}
@@ -595,13 +619,13 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
   60%{transform:rotate(24deg)}100%{transform:rotate(0)}}
 .mAxe.gone{opacity:0;transition:opacity .3s,transform .3s}
 /* осколки */
-.mShard{position:absolute;left:50%;top:50%;width:7px;height:7px;border-radius:1px;
+.mShard{position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:1px;
   z-index:5;pointer-events:none;box-shadow:inset -1px -1px 0 rgba(0,0,0,.3)}
 /* искры руды */
-.mSpark{position:absolute;left:50%;top:50%;width:5px;height:5px;border-radius:50%;
+.mSpark{position:absolute;left:50%;top:50%;width:4px;height:4px;border-radius:50%;
   z-index:7;pointer-events:none}
 /* пыль */
-.mDust{position:absolute;left:50%;top:60%;width:4px;height:4px;border-radius:50%;
+.mDust{position:absolute;left:50%;top:60%;width:3px;height:3px;border-radius:50%;
   background:rgba(120,110,100,.75);z-index:4;pointer-events:none}
 /* ударное кольцо */
 .mRing{position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:50%;
@@ -614,8 +638,8 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
   z-index:12;font-size:20px;color:#fff;pointer-events:none;white-space:nowrap;
   text-shadow:0 2px 0 rgba(0,0,0,.45), 0 0 18px rgba(255,255,255,.35);
   animation:mineWord 1.2s cubic-bezier(.2,.9,.3,1) forwards}
-.mWord.gold{color:#ffe27a;text-shadow:0 2px 0 rgba(0,0,0,.45),0 0 22px rgba(255,215,80,.8)}
-.mWord.diam{color:#8ef2f0;text-shadow:0 2px 0 rgba(0,0,0,.45),0 0 22px rgba(110,230,228,.8)}
+.mWord.gold{color:#ffd740;text-shadow:0 2px 0 rgba(0,0,0,.45),0 0 20px rgba(255,215,64,.9),0 0 40px rgba(255,215,64,.4)}
+.mWord.diam{color:#4aeddb;text-shadow:0 2px 0 rgba(0,0,0,.45),0 0 20px rgba(74,237,219,.9),0 0 40px rgba(74,237,219,.4)}
 .mWord.win{color:#8dffb0;font-size:32px;text-shadow:0 2px 0 rgba(0,0,0,.45),0 0 26px rgba(120,255,170,.8)}
 @keyframes mineWord{0%{transform:translate(-50%,-50%) scale(.3);opacity:0}
   14%{transform:translate(-50%,-50%) scale(1.18);opacity:1}
@@ -634,17 +658,19 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 .mPop{position:absolute;left:50%;top:0;transform:translateX(-50%);font-size:11px;
   color:#fff;pointer-events:none;animation:minePop .9s forwards;white-space:nowrap;
   text-shadow:0 1px 3px rgba(0,0,0,.7)}
-.mPop.ore{color:#ffe27a}
+.mPop.ore{color:#ffd740;text-shadow:0 0 8px rgba(255,215,64,.6)}
 @keyframes minePop{0%{opacity:0;translate:0 4px}15%{opacity:1}
   100%{opacity:0;translate:0 -26px}}
-.mineMult{min-height:20px;font-size:14px;color:#ffe27a;text-align:center}
+.mineMult{min-height:20px;font-size:14px;color:#ffd740;text-align:center;
+  text-shadow:0 0 6px rgba(255,215,64,.3)}
 .mineMult.win{color:#8dffb0;animation:chestPop .4s}
 .mineMult.lose{color:#ff9db1}
 .mineCtl{display:flex;flex-direction:column;gap:6px;align-items:center;width:min(92vw,370px)}
 .mineBets{display:flex;gap:4px;width:100%;justify-content:center}
 .mBet{flex:1;max-width:60px;padding:6px 0;border-radius:10px;border:1px solid rgba(255,255,255,.15);
   background:rgba(255,255,255,.07);color:#fff;font-weight:700;font-size:13px}
-.mBet.on{background:linear-gradient(180deg,#ffd76a,#caa53d);color:#3a2a08;border-color:#ffd76a}
+.mBet.on{background:linear-gradient(180deg,#ffd76a,#caa53d);color:#3a2a08;border-color:#ffd76a;
+  box-shadow:0 0 8px rgba(255,215,106,.3)}
 .mineSpinBtn{width:100%;font-size:14px;padding:10px 0}
 .mineSpinBtn:disabled{opacity:.55}
 .mineHint{color:rgba(255,255,255,.55);text-align:center;font-size:10px;line-height:1.3}
