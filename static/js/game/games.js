@@ -846,11 +846,24 @@ window.Games = (() => {
 
   function startMine(){
     try {
-      MN = {bet: 25, busy: false, over: false, axes: {}};
-      $("mineOv").classList.add("on");
-      mineReset(); mineRenderCtl();
-      $("mSpin").onclick = mineSpin;
+      if (!Prefs.data.mineTutSeen){
+        $("mineTut").classList.add("show");
+        $("mineTutBtn").onclick = () => {
+          Prefs.data.mineTutSeen = true;
+          Prefs.save();
+          $("mineTut").classList.remove("show");
+          launchMine();
+        };
+        return;
+      }
+      launchMine();
     } catch(e){ console.error("[startMine]", e) }
+  }
+  function launchMine(){
+    MN = {bet: 25, busy: false, over: false, axes: {}};
+    $("mineOv").classList.add("on");
+    mineReset(); mineRenderCtl();
+    $("mSpin").onclick = mineSpin;
   }
   function exitMine(){
     if (MN) MN.over = true;

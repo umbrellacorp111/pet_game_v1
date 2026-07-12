@@ -483,6 +483,26 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
+/* ================= Шахта Удачи: Туториал ================= */
+.mineTutCard{background:rgba(15,23,43,.96);border:2px solid rgba(255,255,255,.12);
+  border-radius:16px;padding:20px 18px;width:min(88vw,340px);
+  display:flex;flex-direction:column;gap:14px;align-items:center;
+  box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.mineTutTitle{font-size:18px;color:#ffd76a;letter-spacing:.06em;text-align:center}
+.mineTutBody{display:flex;flex-direction:column;gap:10px;width:100%}
+.mineTutStep{display:flex;align-items:flex-start;gap:10px;font-size:13px;color:rgba(255,255,255,.88);line-height:1.4}
+.mineTutNum{flex-shrink:0;width:22px;height:22px;border-radius:50%;
+  background:linear-gradient(180deg,#ffd76a,#caa53d);color:#3a2a08;
+  font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center}
+.mineTutStep b{color:#ffd76a}
+.mineTutRanks{display:flex;gap:4px;font-size:12px;color:rgba(255,255,255,.55);
+  flex-wrap:wrap;justify-content:center}
+.mineTutDiamond{color:#8ef2f0;font-weight:700}
+.mineTutBtn{width:100%;font-size:15px;padding:12px 0;
+  background:linear-gradient(180deg,#ffd76a,#caa53d);color:#3a2a08;
+  border:none;border-radius:12px;font-weight:800;cursor:pointer;
+  letter-spacing:.04em}
+.mineTutBtn:active{transform:scale(.96)}
 /* ================= Шахта Удачи (казино) ================= */
 .mineWrap{position:absolute;inset:52px 6px 6px;display:flex;flex-direction:column;
   gap:6px;align-items:center;justify-content:flex-start;overflow-y:auto;
