@@ -485,7 +485,8 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 
 /* ================= Шахта Удачи (казино) ================= */
 .mineWrap{position:absolute;inset:52px 10px 10px;display:flex;flex-direction:column;
-  gap:10px;align-items:center;justify-content:center;overflow-y:auto}
+  gap:10px;align-items:center;justify-content:flex-start;overflow-y:auto;
+  padding-top:8px;padding-bottom:8px}
 .minePicks,.mineBoard,.mineChests{display:grid;grid-template-columns:repeat(5,1fr);
   gap:6px;width:min(92vw,370px)}
 .minePicks{position:relative;padding:6px;border-radius:12px;
