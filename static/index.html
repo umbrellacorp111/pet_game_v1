@@ -218,6 +218,36 @@
   </div>
 </div>
 
+<!-- МИНИ-ИГРА: Алхимик (2048-merge) -->
+<div class="gameOv" id="alchemyOv">
+  <div class="gHud">
+    <span class="font-d" style="font-size:13px">⚗️ АЛХИМИК</span>
+    <span class="gScore" id="alcCoins">0 🪙</span>
+    <button class="gExit" onclick="Games.exitAlchemy()">✕</button>
+  </div>
+  <div class="alcWrap">
+    <div class="alcStats">
+      <span>Ходы <b id="alcMoves">0</b></span>
+      <span>Рекорд <b id="alcBest">0</b></span>
+      <span>🔥 <b id="alcStreak">0</b></span>
+      <span>Сегодня <b id="alcCap">0/60</b></span>
+    </div>
+    <div class="alcBoard" id="alcBoard"></div>
+    <div class="alcPad">
+      <button data-dir="up">▲</button>
+      <div class="alcPadRow">
+        <button data-dir="left">◀</button>
+        <button data-dir="down">▼</button>
+        <button data-dir="right">▶</button>
+      </div>
+    </div>
+    <div class="alcBoost" id="alcBoost">⚡ БУСТ ШАХТЫ ГОТОВ ×1.5 — иди копать!</div>
+    <div class="alcSec"><div class="alcSecT">КОЛЛЕКЦИЯ</div><div class="alcGallery" id="alcGallery"></div></div>
+    <div class="alcSec"><div class="alcSecT">ТАЛИСМАНЫ</div><div class="alcTalismans" id="alcTalismans"></div></div>
+    <button class="btn alcNewGame" id="alcNewGame" style="display:none">🔄 НОВАЯ ИГРА</button>
+  </div>
+</div>
+
 <!-- АРЕНА -->
 <div class="overlay" id="vsOv"><div class="modal glass vsModal">
   <button class="vsClose" onclick="Arena.close()">✕</button>

@@ -134,7 +134,9 @@ window.UI = (() => {
         🎣 Рыбалка<small>${s.fishing_cd>0?"отдых "+s.fishing_cd+" c":"до 40 🪙 · рекорд "+(s.best_fishing||0)}</small></div>` },
     casino(){ const s = S(); if (!s) return '';
       return `<div class="bigAct g-gold" data-action="mineslot">
-        🎰 Шахта Удачи<small>ставки 10–200 🪙 · лучший куш ${(s.best_mine||0)} 🪙</small></div>` },
+        🎰 Шахта Удачи<small>ставки 10–200 🪙 · лучший куш ${(s.best_mine||0)} 🪙</small></div>
+      <div class="bigAct g-viol" data-action="alchemy" style="margin-top:8px">
+        ⚗️ Алхимик<small>редкие талисманы → буст шахты ×1.5</small></div>` },
     bath(){ return `<div class="bigAct g-mint" data-action="shower">🚿 Помыть<small>чистота → 100 · +XP</small></div>` },
     arena(){ const s = S(); if (!s) return '';
       const full = s.arena_charge >= 100;
@@ -385,6 +387,7 @@ window.UI = (() => {
       else if (a === "simon") Games.startSimon();
       else if (a === "fishing") Games.startFishing();
       else if (a === "mineslot") Games.startMine();
+      else if (a === "alchemy") Games.startAlchemy();
       else if (a === "shower") shower();
       else if (a === "arena") Arena.start();
       else if (a === "sleep" || a === "wake") sleep();

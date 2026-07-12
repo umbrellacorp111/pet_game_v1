@@ -922,8 +922,114 @@ window.Games = (() => {
     document.querySelectorAll(".pad").forEach(p=>p.onclick = ()=>padTap(+p.dataset.i));
   }
 
+  /* ---------- АЛХИМИК (2048-merge) ---------- */
+  const ALC_SIZE = 4;
+  let AL = null;
+  const alcCell = (r,c) => $("alcBoard").children[r*ALC_SIZE + c];
+  function hasMove(b){
+    for (let r=0;r<ALC_SIZE;r++) for (let c=0;c<ALC_SIZE;c++){
+      const v = b[r] && b[r][c]; if (!v) return true;
+      if (c+1<ALC_SIZE && b[r][c+1]===v) return true;
+      if (r+1<ALC_SIZE && b[r+1][c]===v) return true;
+    }
+    return false;
+  }
+  function alcRender(){
+    const st = GS.S && GS.S.alchemy; if (!st) return;
+    $("alcMoves").textContent = st.moves;
+    $("alcBest").textContent = st.best;
+    $("alcStreak").textContent = st.streak;
+    $("alcCoins").textContent = (GS.S.coins||0) + " 🪙";
+    $("alcCap").textContent = st.day_coins + "/" + st.daily_cap;
+    const board = $("alcBoard");
+    if (board.children.length !== ALC_SIZE*ALC_SIZE)
+      board.innerHTML = Array.from({length:ALC_SIZE*ALC_SIZE},
+        () => '<div class="aCell"></div>').join("");
+    const b = st.board || [];
+    for (let r=0;r<ALC_SIZE;r++) for (let c=0;c<ALC_SIZE;c++){
+      const v = (b[r] && b[r][c]) || 0;
+      const el = alcCell(r,c);
+      el.className = "aCell" + (v ? " r"+v : "");
+      el.textContent = v ? v : "";
+      el.dataset.rank = v;
+    }
+    alcGallery(); alcTalismans();
+    $("alcBoost").classList.toggle("on", !!st.boost_ready);
+    $("alcNewGame").style.display = (st.moves>0 && !hasMove(b)) ? "block" : "none";
+  }
+  function alcGallery(){
+    const st = GS.S.alchemy, g = $("alcGallery");
+    g.innerHTML = st.ranks.map((nm,i) => {
+      const r = i+1, got = st.items.includes(r), rare = r >= st.tal_rank;
+      return `<div class="aGal ${got?'got':''} ${rare?'rare':''} ${r>=10?'leg':''}">
+        <span class="aGalN">${r}</span><span class="aGalT">${got?nm:"???"}</span></div>`;
+    }).join("");
+  }
+  function alcTalismans(){
+    const st = GS.S.alchemy, t = $("alcTalismans");
+    if (!st.talismans.length){
+      t.innerHTML = `<small class="alcEmpty">Слей редкую плитку (ранг ${st.tal_rank}+) — получишь талисман</small>`;
+      return;
+    }
+    t.innerHTML = st.talismans.map((x,i) => {
+      const used = x.used, nm = st.ranks[x.rank-1];
+      return `<div class="aTal ${used?'used':''}"><span>${nm}</span>
+        <button ${used||st.boost_ready?'disabled':''} data-tal="${i}">${used?'использован':'Буст ×1.5'}</button></div>`;
+    }).join("");
+    t.querySelectorAll("[data-tal]").forEach(btn => btn.onclick = async () => {
+      const d = await Api.call("alchemy_boost",{idx:+btn.dataset.tal});
+      if (!d) return;
+      GS.set("S", d); alcRender(); Sfx.play("sparkle"); hap("ok");
+      UI.toast("Буст активен! Иди в Шахту за ×1.5 🪙", true);
+    });
+  }
+  async function alcMove(dir){
+    if (!AL || AL.busy) return;
+    if (GS.S.alchemy.moves <= 0){ UI.toast("Ходы кончились — приходи завтра!"); return; }
+    AL.busy = true;
+    const d = await Api.call("alchemy_move",{move:dir});
+    AL.busy = false;
+    if (!d) return;
+    GS.set("S", d); alcRender();
+    if (d.blocked){ Sfx.play("err"); hap("bad"); return; }
+    Sfx.play("tap"); hap("light");
+    if (d.spawned){ const [r,c]=d.spawned, el=alcCell(r,c);
+      if (el){ el.classList.add("pop"); setTimeout(()=>el.classList.remove("pop"),320); } }
+    if (d.new_item){
+      UI.confetti(); Sfx.play("fanfare"); hap("ok");
+      UI.notify("✨", "Новый редкий: " + GS.S.alchemy.ranks[d.new_item-1] + "!");
+    }
+  }
+  function alcBind(){
+    if (AL && AL.sw) return;
+    const ov = $("alchemyOv");
+    let sx=0, sy=0, trk=false;
+    ov.addEventListener("pointerdown", e=>{ sx=e.clientX; sy=e.clientY; trk=true; });
+    ov.addEventListener("pointerup", e=>{
+      if (!trk) return; trk=false;
+      const dx=e.clientX-sx, dy=e.clientY-sy;
+      if (Math.max(Math.abs(dx),Math.abs(dy)) < 24) return;
+      if (Math.abs(dx) > Math.abs(dy)) alcMove(dx>0?"right":"left");
+      else alcMove(dy>0?"down":"up");
+    });
+    ov.querySelectorAll("[data-dir]").forEach(b=>b.onclick=()=>alcMove(b.dataset.dir));
+    $("alcNewGame").onclick = ()=>alcMove("new");
+    if (AL) AL.sw = true;
+  }
+  function startAlchemy(){
+    try {
+      AL = {busy:false, sw:false};
+      $("alchemyOv").classList.add("on");
+      alcRender(); alcBind();
+    } catch(e){ console.error("[startAlchemy]", e) }
+  }
+  function exitAlchemy(){
+    AL = null; $("alchemyOv").classList.remove("on"); UI.render();
+  }
+
   return { bind, startCatch, closeCatch, exitCatch, startSimon, closeSimon, exitSimon, runCatch,
            startFishing, closeFishing, exitFishing,
            startMine, exitMine,
+           startAlchemy, exitAlchemy,
            get G(){ return G } };
 })();
