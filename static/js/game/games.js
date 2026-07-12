@@ -774,15 +774,15 @@ window.Games = (() => {
       setTimeout(() => {
         cell.className = "mCell " + t;
         cell.textContent = "";
-      }, 80*r + 40*c);
+      }, 130*r + 65*c);
     }));
 
     /* 2. инвентарь крутится и оседает: кирки, блокеры, пустоты */
     const slots = [...$("mPicks").children];
     const tiers = "wsigd";
     const roll = setInterval(() => slots.forEach(s =>
-      s.innerHTML = pickHTML(tiers[Math.random()*5|0])), 90);
-    const T0 = 1100;
+      s.innerHTML = pickHTML(tiers[Math.random()*5|0])), 130);
+    const T0 = 1200;
     slots.forEach((s, i) => setTimeout(() => {
       if (!MN || MN.over) return;
       const c = i % 5, r = (i / 5)|0;
@@ -793,8 +793,8 @@ window.Games = (() => {
       else if (t === "x"){ s.innerHTML = `<i class="blk"></i>`; s.classList.add("blocked") }
       else s.innerHTML = "";
       Sfx.play("tick");
-    }, T0 + i*55));
-    const TSet = T0 + 15*55 + 120;
+    }, T0 + i*80));
+    const TSet = T0 + 15*80 + 180;
 
     /* 3. слияния по колонкам */
     let mergeEnd = TSet;
@@ -804,20 +804,20 @@ window.Games = (() => {
       finals[c] = sim.slots.filter(Boolean)
         .sort((a,b) => MINE_DMG[b] - MINE_DMG[a])[0] || null;
       sim.steps.forEach((st, k) => {
-        const at = TSet + c*140 + k*380;
+        const at = TSet + c*200 + k*500;
         setTimeout(() => { if (MN && !MN.over) mineMergeStep(c, st) }, at);
-        mergeEnd = Math.max(mergeEnd, at + 420);
+        mergeEnd = Math.max(mergeEnd, at + 500);
       });
     }
 
     /* 4. кирки падают и разбивают блоки */
     let mult = 0, oreCount = 0;
-    const STRIKE = 300, T1 = mergeEnd + 350;
+    const STRIKE = 400, T1 = mergeEnd + 520;
     let tEnd = T1;
     for (let c = 0; c < 5; c++){
       const digs = d.digs[c];
       if (!digs || !finals[c]) { continue }
-      const base = T1 + c*260;
+      const base = T1 + c*320;
       setTimeout(() => { if (MN && !MN.over) mineSpawnAxe(c, finals[c], d.digs[c]) }, base - 220);
       for (let r = 0; r < digs; r++){
         const at = base + r*STRIKE;
@@ -887,7 +887,7 @@ window.Games = (() => {
         Sfx.play("bad");
       }
       MN.busy = false; mineRenderCtl();
-    }, tEnd + 300);
+    }, tEnd + 500);
   }
 
   function startMine(){
