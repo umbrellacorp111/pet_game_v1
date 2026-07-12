@@ -893,18 +893,19 @@ window.Games = (() => {
     }, tEnd + 500);
   }
 
+  function showMineTut(firstTime){
+    $("mineTut").classList.add("show");
+    $("mineTutBtn").onclick = () => {
+      Prefs.data.mineTutSeen = true;
+      Prefs.save();
+      $("mineTut").classList.remove("show");
+      if (firstTime) launchMine();
+    };
+  }
+  function openMineTut(){ showMineTut(false); }
   function startMine(){
     try {
-      if (!Prefs.data.mineTutSeen){
-        $("mineTut").classList.add("show");
-        $("mineTutBtn").onclick = () => {
-          Prefs.data.mineTutSeen = true;
-          Prefs.save();
-          $("mineTut").classList.remove("show");
-          launchMine();
-        };
-        return;
-      }
+      if (!Prefs.data.mineTutSeen){ showMineTut(true); return; }
       launchMine();
     } catch(e){ console.error("[startMine]", e) }
   }
@@ -1144,7 +1145,23 @@ window.Games = (() => {
     $("alcNewGame").onclick = ()=>alcMove("new");
     if (AL) AL.sw = true;
   }
+  function showAlcTut(firstTime){
+    $("alcTut").classList.add("show");
+    $("alcTutBtn").onclick = () => {
+      Prefs.data.alcTutSeen = true;
+      Prefs.save();
+      $("alcTut").classList.remove("show");
+      if (firstTime) launchAlchemy();
+    };
+  }
+  function openAlcTut(){ showAlcTut(false); }
   function startAlchemy(){
+    try {
+      if (!Prefs.data.alcTutSeen){ showAlcTut(true); return; }
+      launchAlchemy();
+    } catch(e){ console.error("[startAlchemy]", e) }
+  }
+  function launchAlchemy(){
     try {
       AL = {busy:false, sw:false, board:null, fx:null};
       $("alchemyOv").classList.add("on");
@@ -1152,7 +1169,7 @@ window.Games = (() => {
       alcRender(); alcBind();
       // геометрия становится валидной после показа — перерисуем плитки
       requestAnimationFrame(()=>alcRenderTiles());
-    } catch(e){ console.error("[startAlchemy]", e) }
+    } catch(e){ console.error("[launchAlchemy]", e) }
   }
   function exitAlchemy(){
     AL = null; $("alchemyOv").classList.remove("on"); UI.render();
@@ -1203,8 +1220,8 @@ window.Games = (() => {
 
   return { bind, startCatch, closeCatch, exitCatch, startSimon, closeSimon, exitSimon, runCatch,
            startFishing, closeFishing, exitFishing,
-           startMine, exitMine,
+           startMine, exitMine, openMineTut,
            openMineTal, closeMineTal,
-           startAlchemy, exitAlchemy,
+           startAlchemy, exitAlchemy, openAlcTut,
            get G(){ return G } };
 })();
