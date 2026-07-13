@@ -11,7 +11,7 @@
 <script src="/static/js/lib/FBXLoader.js?v=20260708d"></script>
 <script src="/static/js/lib/GLTFLoader.js?v=20260708d"></script>
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;900&family=Manrope:wght@600;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/main.css?v=20260712d">
+<link rel="stylesheet" href="/static/css/main.css?v=20260713a">
 </head>
 <body data-room="living" data-mode="boot">
 
@@ -282,6 +282,70 @@
   </div>
 </div>
 
+<!-- МИНИ-ИГРА: Подземелье (roguelite) -->
+<div class="gameOv dgOv" id="dungeonOv">
+  <div class="gHud">
+    <span class="font-d" style="font-size:13px">🗡️ ПОДЗЕМЕЛЬЕ</span>
+    <span class="gScore" id="dgCoins">0 🪙</span>
+    <span class="gScore" id="dgTokens" style="color:#ffd76a">0 🎟️</span>
+    <button class="gHelp" onclick="Games.openDungeonTut()">?</button>
+    <button class="gExit" onclick="Games.exitDungeon()">✕</button>
+  </div>
+
+  <!-- ХАБ: метапрогресс -->
+  <div class="dgHub" id="dgHub">
+    <div class="dgStatRow">
+      <span>Глубина <b id="dgDeepest">0/50</b></span>
+      <span>Ингредиенты <b id="dgIngr">0</b> 🧪</span>
+    </div>
+    <div class="dgUpgTitle">УЛУЧШЕНИЯ (за 🎟️)</div>
+    <div class="dgUpgList" id="dgUpgList"></div>
+    <button class="btn dgEnter" id="dgEnter">⚔️ СПУСТИТЬСЯ</button>
+    <small class="dgHint">Спускайся глубже, бейся с чудовищами, собирай лут. Чем глубже — тем редчее добыча.</small>
+  </div>
+
+  <!-- БОЙ -->
+  <div class="dgFight" id="dgFight" style="display:none">
+    <div class="dgFloorLbl" id="dgFloor">Этаж 1</div>
+    <div class="dgEnemyBox">
+      <div class="dgEnemy" id="dgEnemy">👾</div>
+    </div>
+    <div class="dgBars">
+      <div class="dgBar"><div class="dgBarFill enemy" id="dgEnemyHpFill"></div></div>
+      <div class="dgBar mine" id="dgMyHp"><div class="dgBarFill mine" id="dgMyHpFill"></div>
+        <span class="dgHpTxt" id="dgMyHpTxt">100/100</span></div>
+    </div>
+    <div class="dgLoot" id="dgLoot"></div>
+    <div class="dgFightBtns">
+      <button class="btn dgLeave" id="dgLeave">🚪 Выйти</button>
+      <button class="btn dgNext" id="dgNext">⏭️ Дальше</button>
+    </div>
+    <small class="dgHint">Тапай по чудовищу, чтобы бить. Каждый удар — ответный. Дойди до конца этажа!</small>
+  </div>
+</div>
+
+<!-- ПОДСКАЗКА: Подземелье -->
+<div class="overlay" id="dgTut">
+  <div class="mineTutCard">
+    <div class="mineTutTitle font-d">ПОДЗЕМЕЛЬЕ 🗡️</div>
+    <div class="mineTutBody">
+      <div class="mineTutStep"><span class="mineTutNum">1</span>
+        <span>Спустись в подземелье — тратится <b>энергия</b></span></div>
+      <div class="mineTutStep"><span class="mineTutNum">2</span>
+        <span><b>Тапай по чудовищу</b>, чтобы бить его. Оно отвечает ударом!</span></div>
+      <div class="mineTutStep"><span class="mineTutNum">3</span>
+        <span>Победил — забирай <b>лут</b> и иди <b>дальше</b> (глубже)</span></div>
+      <div class="mineTutStep"><span class="mineTutNum">4</span>
+        <span>Босс каждые <b>5 этажей</b> — сильнее, но богаче наградой</span></div>
+      <div class="mineTutStep"><span class="mineTutNum">5</span>
+        <span>Умер — забег окончен, глубина <b>записывается</b></span></div>
+      <div class="mineTutStep"><span class="mineTutNum">6</span>
+        <span>Трать <b>🎟️ токены</b> на улучшения, чтобы спускаться глубже</span></div>
+    </div>
+    <button class="btn mineTutBtn" id="dgTutBtn">Я ПОНЯЛ</button>
+  </div>
+</div>
+
 <!-- ОКНО ТАЛИСМАНОВ В ШАХТЕ -->
 <div class="overlay" id="mineTalOv">
   <div class="modal glass mineTalModal">
@@ -343,8 +407,8 @@
 <script src="/static/js/character/retarget.js?v=20260711a"></script>
 <script src="/static/js/character/hero.js?v=20260711a"></script>
 <script src="/static/js/character/animator.js?v=20260711b"></script>
-<script src="/static/js/game/ui.js?v=20260711d"></script>
-<script src="/static/js/game/games.js?v=20260712e"></script>
+<script src="/static/js/game/ui.js?v=20260713a"></script>
+<script src="/static/js/game/games.js?v=20260713a"></script>
 <script src="/static/js/game/arena.js?v=20260708d"></script>
 <script src="/static/js/game/main.js?v=20260711c"></script>
 </body>

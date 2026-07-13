@@ -1252,10 +1252,204 @@ window.Games = (() => {
     });
   }
 
+  /* ---------- ПОДЗЕМЕЛЬЕ (roguelite) ---------- */
+  let DG = null;
+  function dhSt(){ return GS.S && GS.S.dungeon; }
+  function startDungeon(){
+    try {
+      if (!Prefs.data.dungeonTutSeen){ showDungeonTut(true); return; }
+      launchDungeon();
+    } catch(e){ console.error("[startDungeon]", e) }
+  }
+  function launchDungeon(){
+    DG = {busy:false, inRun:false, floor:0, hp:0, maxHp:0, monster:null, dead:false, last:0};
+    $("dungeonOv").classList.add("on");
+    dungeonRender();
+    dungeonBind();
+  }
+  function exitDungeon(){
+    DG = null; $("dungeonOv").classList.remove("on"); UI.render();
+  }
+  async function dungeonResume(){
+    if (!DG || DG.busy) return;
+    DG.busy = true; Sfx.play("swoosh");
+    const d = await Api.call("dungeon_resume", {});
+    DG.busy = false;
+    if (!d){ return; }
+    GS.set("S", d);
+    DG.inRun = true; DG.dead = false; DG.token = d.token || "";
+    DG.floor = d.dungeon.floor; DG.maxHp = d.max_hp;
+    DG.hp = d.dungeon.hp; DG.monster = makeMon(d.monster);
+    dungeonRender(); hap("medium");
+  }
+  function dungeonRender(){
+    const st = dhSt(); if (!st || !DG) return;
+    $("dgCoins").textContent = (GS.S.coins||0) + " 🪙";
+    $("dgTokens").textContent = (GS.S.tokens||0) + " 🎟️";
+    if (st.in_run){
+      if (!DG.inRun || !DG.monster){
+        // активный забег, но бой ещё не отрисован (повторный вход) — возобновим
+        dungeonResume(); return;
+      }
+      $("dgHub").style.display = "none";
+      $("dgFight").style.display = "flex";
+      $("dgFloor").textContent = "Этаж " + DG.floor + (DG.monster && DG.monster.boss ? " 👹БОСС" : "");
+      $("dgEnemy").textContent = DG.monster ? DG.monster.emoji : "👾";
+      $("dgEnemyHpFill").style.width = Math.max(0, DG.monster.hp / DG.monster.maxhp * 100) + "%";
+      $("dgMyHpFill").style.width = Math.max(0, DG.hp / DG.maxHp * 100) + "%";
+      $("dgMyHpTxt").textContent = Math.max(0, DG.hp) + "/" + DG.maxHp;
+    } else {
+      $("dgHub").style.display = "block";
+      $("dgFight").style.display = "none";
+      $("dgDeepest").textContent = st.deepest + "/" + st.max_floor;
+      $("dgIngr").textContent = st.ingr;
+      const can = (GS.S.energy||0) >= st.cost_energy;
+      $("dgEnter").disabled = !can;
+      $("dgEnter").textContent = can ? "⚔️ СПУСТИТЬСЯ (энергия " + st.cost_energy + ")" : "Нет энергии 🌙";
+      dungeonRenderUpg();
+    }
+  }
+  function dungeonRenderUpg(){
+    const st = dhSt(); if (!st) return;
+    const wrap = $("dgUpgList"); if (!wrap) return;
+    wrap.innerHTML = Object.keys(st.upgrade_defs).map(k => {
+      const d = st.upgrade_defs[k], lvl = (st.upgrades[k]||0), max = d.max;
+      const next = lvl < max ? d.cost[lvl] : "—";
+      const pips = Array.from({length:max}, (_,i)=>'<i class="'+(i<lvl?"on":"")+'"></i>').join("");
+      return `<div class="dgUpg"><div class="dgUpgI">${d.name}</div><div class="dgUpgD">${d.desc}</div>
+        <div class="dgPips">${pips}</div>
+        <button data-upg="${k}" ${lvl>=max?"disabled":""}>${lvl>=max?"МАКС":("🎟️ "+next)}</button></div>`;
+    }).join("");
+    wrap.querySelectorAll("[data-upg]").forEach(b => b.onclick = () => dungeonUpgrade(b.dataset.upg));
+  }
+  async function dungeonUpgrade(key){
+    const d = await Api.call("dungeon_upgrade", {key});
+    if (!d) return;
+    GS.set("S", d); Sfx.play("coin"); hap("ok"); dungeonRender();
+  }
+  async function dungeonStart(){
+    if (!DG || DG.busy) return;
+    DG.busy = true; Sfx.play("swoosh");
+    const d = await Api.call("dungeon_start", {});
+    DG.busy = false;
+    if (!d){ return; }
+    GS.set("S", d);
+    DG.inRun = true; DG.dead = false; DG.token = d.token || "";
+    DG.floor = d.dungeon.floor; DG.maxHp = d.max_hp;
+    DG.hp = d.dungeon.hp; DG.monster = makeMon(d.monster);
+    dungeonRender(); hap("medium");
+  }
+  async function dungeonClear(){
+    if (!DG || DG.busy) return;
+    const d = await Api.call("dungeon_action", {action:"clear", token: DG.token || ""});
+    if (!d){ return; }
+    GS.set("S", d);
+    if (d.finished || d.loot === undefined){
+      // завершение забега
+      DG.inRun = false; DG.busy = false;
+      dungeonLoot(d.loot || []);
+      UI.toast("🏆 Вершина пройдена! Глубина " + (d.cleared||DG.floor), false);
+      Sfx.play("fanfare"); hap("ok"); UI.confetti();
+      dungeonRender(); return;
+    }
+    dungeonLoot(d.loot || []);
+    DG.floor = d.dungeon.floor; DG.maxHp = d.max_hp;
+    DG.hp = d.dungeon.hp; DG.monster = makeMon(d.monster);
+    DG.busy = false; dungeonRender();
+  }
+  async function dungeonLeave(){
+    if (!DG || DG.busy) return;
+    const d = await Api.call("dungeon_action", {action:"leave", token: DG.token || ""});
+    if (!d) return;
+    GS.set("S", d); DG.inRun = false; DG.busy = false;
+    UI.toast("🚪 Выбрался на " + (d.left_floor||0) + "-м этаже", false);
+    dungeonRender();
+  }
+  function dungeonLoot(loot){
+    if (!loot || !loot.length) return;
+    $("dgLoot").innerHTML = loot.map(x=>'<span class="dgLootItem">'+x.emo+(x.amt>1?(" ×"+x.amt):"")+'</span>').join("");
+    $("dgLoot").classList.add("show");
+    Sfx.play("coin"); hap("ok");
+    setTimeout(()=>$("dgLoot").classList.remove("show"), 2200);
+  }
+  function makeMon(m){
+    if (!m) return null;
+    return {...m, maxhp: m.hp};
+  }
+  // ---- бой (tap, как арена; герой анимируется поверх 3D) ----
+  function dungeonBind(){
+    if (DG && DG.sw) return;
+    const tap = $("dgEnemy");
+    if (tap) tap.onclick = dungeonTapEnemy;
+    const enter = $("dgEnter"); if (enter) enter.onclick = dungeonStart;
+    const leave = $("dgLeave"); if (leave) leave.onclick = dungeonLeave;
+    const next = $("dgNext"); if (next) next.onclick = dungeonClear;
+    DG.sw = true;
+  }
+  function dungeonTapEnemy(){
+    if (!DG || !DG.inRun || DG.busy || !DG.monster || DG.monster.hp <= 0) return;
+    if (Date.now() - DG.last < 220) return;
+    DG.last = Date.now();
+    Sfx.play("tap"); hap("light");
+    const crit = Math.random() < (0.06 * ((dhSt().upgrades.crit||0)));
+    const dmg = DG.monster.dmg * (crit ? 2 : 1);
+    DG.monster.hp -= dmg;
+    if (window.Anim) window.Anim.play("kick");
+    else if (window.heroMain) window.heroMain.playAnim && window.heroMain.playAnim("kick");
+    dungeonFloat(dgEnemy, "-" + dmg + (crit ? "!" : ""), crit);
+    $("dgEnemyHpFill").style.width = Math.max(0, DG.monster.hp / DG.monster.maxhp * 100) + "%";
+    if (DG.monster.hp <= 0){ dungeonWin(); return; }
+    // ответный удар монстра
+    setTimeout(() => {
+      if (!DG || !DG.inRun) return;
+      const mhit = DG.monster.atk + Math.floor(Math.random() * DG.monster.atk);
+      DG.hp -= mhit;
+      if (window.Anim) window.Anim.play("stepBack");
+      if (window.Engine && window.Engine.cam) window.Engine.cam.shake();
+      dungeonFloat($("dgMyHp"), "-" + mhit, false, true);
+      $("dgMyHpFill").style.width = Math.max(0, DG.hp / DG.maxHp * 100) + "%";
+      $("dgMyHpTxt").textContent = Math.max(0, DG.hp) + "/" + DG.maxHp;
+      if (DG.hp <= 0) dungeonDie();
+    }, 260);
+  }
+  function dungeonWin(){
+    DG.busy = true; Sfx.play("win"); hap("ok");
+    if (DG.monster && DG.monster.boss) UI.toast("👹 Босс повержен!", false);
+    setTimeout(() => { if (DG) dungeonClear(); }, 650);
+  }
+  async function dungeonDie(){
+    DG.busy = true; DG.dead = true;
+    const d = await Api.call("dungeon_action", {action:"hp", hp:0, token: DG.token || ""});
+    if (d){ GS.set("S", d); }
+    DG.inRun = false; DG.busy = false;
+    UI.toast("💀 Пал на этаже " + DG.floor + ". Глубина записана.", false);
+    Sfx.play("bad"); hap("bad");
+    dungeonRender();
+  }
+  function dungeonFloat(anchor, txt, big, mine){
+    if (!anchor) return;
+    const f = document.createElement("div");
+    f.className = "dgFloat" + (big ? " big" : "") + (mine ? " mine" : "");
+    f.textContent = txt;
+    anchor.appendChild(f);
+    setTimeout(() => f.remove(), 800);
+  }
+  function showDungeonTut(firstTime){
+    $("dgTut").classList.add("show");
+    $("dgTutBtn").onclick = () => {
+      Prefs.data.dungeonTutSeen = true; Prefs.save();
+      $("dgTut").classList.remove("show");
+      if (firstTime) launchDungeon();
+    };
+  }
+  function openDungeonTut(){ showDungeonTut(false); }
+
   return { bind, startCatch, closeCatch, exitCatch, startSimon, closeSimon, exitSimon, runCatch,
            startFishing, closeFishing, exitFishing,
            startMine, exitMine, openMineTut,
            openMineTal, closeMineTal,
            startAlchemy, exitAlchemy, openAlcTut,
+           startDungeon, exitDungeon, openDungeonTut,
+           dungeonUpgrade,
            get G(){ return G } };
 })();
