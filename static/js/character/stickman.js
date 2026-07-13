@@ -5,6 +5,16 @@ window.Stickman = (() => {
   const PALETTE = [0x101018, 0x1a1030, 0x2a0a18, 0x07203a, 0x11301a, 0x2a2410];
   const matFor = c => new THREE.MeshStandardMaterial({color:c, roughness:.55, metalness:.1});
   function limb(geo, mat){ const m = new THREE.Mesh(geo, mat); m.castShadow = true; return m; }
+  // капсула для совместимости со старыми three (r128 нет CapsuleGeometry): цилиндр + 2 сферы
+  function capsule(r, len, mat){
+    const grp = new THREE.Group();
+    const h = Math.max(0.001, len);                 // высота цилиндра между центрами сфер
+    const cyl = limb(new THREE.CylinderGeometry(r, r, h, 10), mat);
+    const top = limb(new THREE.SphereGeometry(r, 10, 8), mat); top.position.y = h/2;
+    const bot = limb(new THREE.SphereGeometry(r, 10, 8), mat); bot.position.y = -h/2;
+    grp.add(cyl, top, bot);
+    return grp;
+  }
 
   function build(opts={}){
     const color = opts.color != null ? opts.color : PALETTE[Math.floor(Math.random()*PALETTE.length)];
@@ -13,11 +23,11 @@ window.Stickman = (() => {
     const g = new THREE.Group();
 
     const head = limb(new THREE.SphereGeometry(.17,16,12), mat); head.position.y = 1.5;
-    const torso = limb(new THREE.CapsuleGeometry(.15,.5,4,8), mat); torso.position.y = 1.05;
-    const armL = limb(new THREE.CapsuleGeometry(.06,.5,3,6), mat); armL.position.set(-.26,1.15,0);
-    const armR = limb(new THREE.CapsuleGeometry(.06,.5,3,6), mat); armR.position.set(.26,1.15,0);
-    const legL = limb(new THREE.CapsuleGeometry(.07,.55,3,6), mat); legL.position.set(-.12,.45,0);
-    const legR = limb(new THREE.CapsuleGeometry(.07,.55,3,6), mat); legR.position.set(.12,.45,0);
+    const torso = capsule(.15, .5, mat); torso.position.y = 1.05;
+    const armL = capsule(.06, .5, mat); armL.position.set(-.26,1.15,0);
+    const armR = capsule(.06, .5, mat); armR.position.set(.26,1.15,0);
+    const legL = capsule(.07, .55, mat); legL.position.set(-.12,.45,0);
+    const legR = capsule(.07, .55, mat); legR.position.set(.12,.45,0);
     g.add(head, torso, armL, armR, legL, legR);
     g.scale.setScalar(scale);
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
