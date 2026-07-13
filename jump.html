@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Doodle Jump Clone - Balanced</title>
+    <style>
+        body {
+            margin: 0;
+            background: #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        canvas {
+            background: linear-gradient(to bottom, #e0f2fe, #f0fdf4);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 8px;
+        }
+        #scoreBoard {
+            position: absolute;
+            top: 20px;
+            color: #fff;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="scoreBoard">Счет: 0</div>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreBoard = document.getElementById('scoreBoard');
+
+// --- ИЗМЕНЕННЫЕ НАСТРОЙКИ ДЛЯ БАЛАНСА И ПЛАВНОСТИ ---
+const GRAVITY = 0.22;          // Было 0.35 (теперь падение более плавное и медленное)
+const JUMP_STRENGTH = -8.5;    // Было -10 (высота прыжка скорректирована под новую гравитацию)
+const PLATFORM_COUNT = 7;
+const MAX_GAP = 110;           // Максимальное расстояние между платформами (гарантирует долетаемость)
+const MIN_GAP = 60;            // Минимальное расстояние между платформами
+
+let score = 0;
+let maxScore = 0;
+let gameOver = false;
+
+// Объект игрока
+const player = {
+    x: canvas.width / 2 - 20,
+    y: canvas.height - 150,
+    width: 40,
+    height: 40,
+    vx: 0,
+    vy: 0,
+    color: '#10b981',
+    draw() {
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.width, this.height, 10);
+        ctx.fill();
+        
+        // Глазки
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(this.x + 12, this.y + 15, 5, 0, Math.PI * 2);
+        ctx.arc(this.x + 28, this.y + 15, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(this.x + 12, this.y + 12, 2.5, 0, Math.PI * 2);
+        ctx.arc(this.x + 28, this.y + 12, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+};
+
+// Класс платформ
+class Platform {
+    constructor(y) {
+        this.width = 70;
+        this.height = 15;
+        this.x = Math.random() * (canvas.width - this.width);
+        this.y = y;
+        this.color = '#f59e0b';
+    }
+    draw() {
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.width, this.height, 5);
+        ctx.fill();
+        ctx.fillStyle = '#d97706';
+        ctx.fillRect(this.x + 5, this.y + 4, this.width - 10, 3);
+    }
+}
+
+let platforms = [];
+
+// Инициализация игры
+function init() {
+    score = 0;
+    gameOver = false;
+    player.x = canvas.width / 2 - 20;
+    player.y = canvas.height - 150;
+    player.vx = 0;
+    player.vy = JUMP_STRENGTH;
+    
+    platforms = [];
+    
+    // Создаем первую платформу строго под игроком
+    let currentY = canvas.height - 50;
+    let firstPlatform = new Platform(currentY);
+    firstPlatform.x = canvas.width / 2 - 35;
+    platforms.push(firstPlatform);
+
+    // Генерируем остальные платформы с контролируемым шагом по высоте
+    for (let i = 1; i < PLATFORM_COUNT; i++) {
+        let gap = MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP);
+        currentY -= gap;
+        platforms.push(new Platform(currentY));
+    }
+}
+
+// Управление клавиатурой
+const keys = {};
+window.addEventListener('keydown', (e) => keys[e.code] = true);
+window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+// Клик для перезапуска
+window.addEventListener('click', () => {
+    if (gameOver) init();
+});
+
+// Нахождение самой верхней платформы
+function getHighestPlatformY() {
+    let highestY = canvas.height;
+    platforms.forEach(p => {
+        if (p.y < highestY) highestY = p.y;
+    });
+    return highestY;
+}
+
+// Основной игровой цикл
+function update() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (!gameOver) {
+        // Снизили скорость перемещения: было 6, стало 4.5
+        if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -4.5;
+        else if (keys['ArrowRight'] || keys['KeyD']) player.vx = 4.5;
+        else player.vx *= 0.75; // Чуть более быстрое, но плавное торможение
+
+        player.x += player.vx;
+        player.vy += GRAVITY;
+        player.y += player.vy;
+
+        // Телепортация по краям экрана
+        if (player.x + player.width < 0) player.x = canvas.width;
+        if (player.x > canvas.width) player.x = -player.width;
+
+        // Движение камеры
+        if (player.y < canvas.height / 2) {
+            let diff = canvas.height / 2 - player.y;
+            player.y = canvas.height / 2;
+            score += Math.round(diff);
+            
+            platforms.forEach(p => {
+                p.y += diff;
+                
+                // Перенос упавшей платформы наверх с учетом ограничений по высоте
+                if (p.y > canvas.height) {
+                    let highestY = getHighestPlatformY();
+                    // Новая платформа ставится выше самой верхней на безопасном расстоянии
+                    let gap = MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP);
+                    p.y = highestY - gap;
+                    p.x = Math.random() * (canvas.width - p.width);
+                }
+            });
+        }
+
+        // Столкновение с платформами (только при падении)
+        if (player.vy > 0) {
+            platforms.forEach(p => {
+                if (player.x + player.width > p.x &&
+                    player.x < p.x + p.width &&
+                    player.y + player.height >= p.y &&
+                    player.y + player.height <= p.y + p.height + player.vy + 2) { // Добавлен запас +2 для точности
+                        player.vy = JUMP_STRENGTH;
+                }
+            });
+        }
+
+        // Проигрыш
+        if (player.y > canvas.height) {
+            gameOver = true;
+            if (score > maxScore) maxScore = score;
+        }
+
+        scoreBoard.innerText = `Счет: ${score}`;
+    }
+
+    // Отрисовка
+    platforms.forEach(p => p.draw());
+    player.draw();
+
+    if (gameOver) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 30px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('ИГРА ОКОНЧЕНА', canvas.width / 2, canvas.height / 2 - 30);
+        
+        ctx.font = '20px Arial';
+        ctx.fillText(`Ваш счет: ${score}`, canvas.width / 2, canvas.height / 2 + 10);
+        ctx.fillText(`Рекорд: ${maxScore}`, canvas.width / 2, canvas.height / 2 + 40);
+        
+        ctx.fillStyle = '#10b981';
+        ctx.font = '16px Arial';
+        ctx.fillText('Кликните мышкой для перезапуска', canvas.width / 2, canvas.height / 2 + 90);
+    }
+
+    requestAnimationFrame(update);
+}
+
+init();
+update();
+</script>
+
+</body>
+</html>

@@ -116,7 +116,8 @@ window.Games = (() => {
 
   /* ---------- Дудл-Джамп (прыжки вверх) ---------- */
   const DOODLE_W = 360, DOODLE_H = 600;
-  const GRAV = 1400, JUMP = 1080, SPRING = 1500, MV = 300;
+  const GRAV = 13.2, JUMP = -510, SPRING = -900, MV = 270;  // dt-физика (производная от плавного прототипа)
+  const PLAT_W = () => 58 + Math.random()*44;
   function startDoodle(){
     try {
       Api.call("doodle_start").then(d => {
@@ -140,58 +141,50 @@ window.Games = (() => {
     }
     size();
 
-    const px0 = W * 0.5;
+    const pw = 36;                       // ширина/высота питомца (для коллизий)
     const G_ = { token, over:false, t0:performance.now(),
-      player:{ x:px0, y:0, vy:JUMP, onPlat:null, blink:0, face:1 },
-      cam:0, platforms:[],       springs:new Set(), maxY:0, score:0,
-      keys:{ left:false, right:false }, tilt:0, targetVX:0, vx:0,
-      pointerId:null, pointerVX:0, usingPointer:false, usingTilt:false };
+      player:{ x:W*0.5, y:H*0.5, vy:JUMP, blink:0, face:1, targetX:W*0.5 },
+      cam:H*0.5, platforms:[], maxY:0, score:0,
+      keys:{ left:false, right:false }, tilt:0, vx:0,
+      active:null, pointerId:null };
 
-    // стартовая платформа под игроком
-    G_.platforms.push({ id:0, x:px0, y:-30, w:74, spring:false });
-    // каждый прыжок ведёт на СЛЕДУЮЮ по высоте платформу (цепочка по id),
-    // поэтому платформы кладём выше апекса прыжка
-    const JUMP_APEX = (JUMP*JUMP) / (2*GRAV);
-    const APEX_GAP = () => JUMP_APEX * (0.70 + Math.random()*0.12);  // цель чуть ниже апекса -> ловим на спуске
-    function spawnPlat(g, y, id){
-      const w = 58 + Math.random()*44;
-      const prevX = g.platforms.length ? g.platforms[g.platforms.length-1].x : W*0.5;
-      // держим платформы близко по X, чтобы был достижим за один прыжок (с дрейфом)
-      let nx = prevX + (Math.random()*2-1) * (W*0.22);
-      if (nx < w/2) nx += W*0.3; if (nx > W - w/2) nx -= W*0.3;
-      const spring = Math.random() < 0.16;
-      g.platforms.push({ id, x:nx, y, w, spring });
-      return y + 18 + APEX_GAP();
+    // ---- пул платформ (схема «broom»: упавшие переносим наверх) ----
+    function makePlat(y){
+      const w = PLAT_W();
+      return { x: w/2 + Math.random()*(W - w), y, w, spring: Math.random() < 0.16 };
     }
-    function platById(id){ for (const p of G_.platforms) if (p.id === id) return p; return null; }
+    G_.platforms = [];
+    let py = H - 40;
+    G_.platforms.push({ x: W*0.5, y: py, w: 80, spring:false }); // стартовая строго под игроком
+    for (let i = 0; i < 7; i++){
+      py -= 60 + Math.random()*50;            // зазор 60..110 (всегда достижим прыжком)
+      G_.platforms.push(makePlat(py));
+    }
+    function highestY(){
+      let m = H + 999; for (const p of G_.platforms) if (p.y < m) m = p.y; return m;
+    }
 
-    // предзаполним цепочку платформ вверх (цель — на апексе прыжка от старта)
-    let nextId = 1, nextY = G_.player.y + JUMP_APEX - 18;
-    while (nextY < H + 400){ nextY = spawnPlat(G_, nextY, nextId++); }
-    G_.lastLandId = 0;
-
-    // ---- ввод ----
+    // ---- ввод: ПК (стрелки/AD), телефон (тач-перетаскивание + наклон) ----
     function onKey(e, down){
       if (e.key === "ArrowLeft" || e.key === "a" || e.key === "A") G_.keys.left = down;
       else if (e.key === "ArrowRight" || e.key === "d" || e.key === "D") G_.keys.right = down;
     }
     const kd = e => onKey(e, true), ku = e => onKey(e, false);
     addEventListener("keydown", kd); addEventListener("keyup", ku);
+
     function onTilt(e){
-      const g = (e.gamma || 0);            // наклон влево/вправо
-      if (Math.abs(g) > 4){ G_.usingTilt = true; G_.tilt = Math.max(-1, Math.min(1, g/35)); }
+      const g = e.gamma || 0;                 // наклон влево/вправо (градусы)
+      if (Math.abs(g) > 3) G_.tilt = Math.max(-1, Math.min(1, g/30));
     }
     addEventListener("deviceorientation", onTilt);
+
     const pd = e => {
-      if (G_.pointerId !== null && e.pointerId !== G_.pointerId) return;
-      const r = c.getBoundingClientRect();
-      G_.pointerId = e.pointerId; G_.usingPointer = true;
-      const cx = (e.clientX - r.left);
-      const rel = (cx - (px0 * (r.width / W))); // смещение от центра (в логич. px)
-      G_.pointerVX = Math.max(-1, Math.min(1, rel / (W*0.4))) * MV;
       e.preventDefault();
+      G_.pointerId = e.pointerId;
+      const r = c.getBoundingClientRect();
+      G_.player.targetX = (e.clientX - r.left) * (W / r.width);
     };
-    const pu = e => { if (e.pointerId === G_.pointerId){ G_.pointerId = null; G_.pointerVX = 0; } };
+    const pu = e => { if (e.pointerId === G_.pointerId){ G_.pointerId = null; } };
     c.addEventListener("pointerdown", pd);
     c.addEventListener("pointermove", pd);
     addEventListener("pointerup", pu); addEventListener("pointercancel", pu);
@@ -204,7 +197,6 @@ window.Games = (() => {
     }
 
     let last = performance.now();
-    const camBase = H * 0.34;   // игрок держим низко на экране -> больше запаса под прыжок сверху
     (function loop(){
       if (G_.over) return;
       if (!size()){ requestAnimationFrame(loop); return; }
@@ -212,57 +204,74 @@ window.Games = (() => {
       const dt = Math.min((now - last) / 1000, 0.032); last = now;
 
       const p = G_.player;
-      // горизонтальный ввод
+      // горизонтальный ввод: ПК-клавиши (пока зажаты) > тач-палец > наклон
       let inVX = 0;
-      if (G_.usingPointer && G_.pointerId !== null) inVX = G_.pointerVX;
-      else if (G_.usingTilt) inVX = G_.tilt * MV;
-      else inVX = (G_.keys.right ? MV : 0) - (G_.keys.left ? MV : 0);
-      G_.vx += (inVX - G_.vx) * Math.min(1, dt*12);
+      if (G_.keys.left || G_.keys.right)
+        inVX = (G_.keys.right ? MV : 0) - (G_.keys.left ? MV : 0);
+      else if (G_.pointerId !== null)
+        inVX = (p.targetX - p.x) * 10;     // тянемся к пальцу
+      else
+        inVX = G_.tilt * MV;
+      G_.vx += (inVX - G_.vx) * Math.min(1, dt*14);
+      G_.vx = Math.max(-MV*1.5, Math.min(MV*1.5, G_.vx));
       p.x += G_.vx * dt;
-      if (p.x < 0) p.x += W; if (p.x > W) p.x -= W;   // wrap
+      if (p.x < 0) p.x += W; if (p.x > W) p.x -= W;   // wrap по краям
 
       // физика
-      p.vy -= GRAV * dt;
+      p.vy += GRAV * dt;                    // y вниз: гравитация положительна
       p.y += p.vy * dt;
       p.blink += dt;
+      if (G_.vx > 12) p.face = 1; else if (G_.vx < -12) p.face = -1;
 
-      // камера следит только вверх
-      const camTarget = p.y - camBase;
-      if (camTarget > G_.cam) G_.cam = camTarget;
-      G_.maxY = Math.max(G_.maxY, p.y);
+      // камера: держим игрока в верхней трети, скроллим мир вниз при подъёме
+      const camTarget = p.y - H*0.34;
+      if (camTarget < G_.cam) G_.cam = camTarget;
+      const climbed = G_.cam * -1;          // сколько поднялись (в мире вверх)
+      G_.maxY = Math.max(G_.maxY, climbed);
       G_.score = Math.floor(G_.maxY / 10);
 
-      // платформы: держим цепочку заполненной ВПЕРЕДИ игрока (+запас по высоте)
-      const ahead = p.y + JUMP_APEX * 4;
-      while (nextY < ahead){ nextY = spawnPlat(G_, nextY, nextId++); }
-      G_.platforms = G_.platforms.filter(pl => pl.y > G_.cam - H - 320);
+      // перенос упавших платформ наверх (broom)
+      for (const pl of G_.platforms){
+        if (pl.y - G_.cam > H + 40){
+          pl.y = highestY() - (60 + Math.random()*50);
+          const w = PLAT_W();
+          pl.w = w; pl.x = w/2 + Math.random()*(W - w);
+          pl.spring = Math.random() < 0.16;
+        }
+      }
 
-      // приземление только на СЛЕДУЮЩУЮ цель-платформу (цепочка по id)
-      if (!G_.target || G_.target.id !== G_.lastLandId + 1)
-        G_.target = platById(G_.lastLandId + 1);
-      if (G_.target){
-        const feet = p.y - 18, topY = G_.target.y;
-        if (p.x > G_.target.x - G_.target.w/2 - 8 && p.x < G_.target.x + G_.target.w/2 + 8 &&
-            feet <= topY + 10 && feet >= topY - 200 && p.vy <= 0){
-          p.y = topY + 18;
-          p.vy = G_.target.spring ? SPRING : JUMP;
-          p.onPlat = G_.target;
-          G_.lastLandId = G_.target.id;
+      // приземление на ЛЮБУЮ платформу под ногами при падении
+      if (p.vy > 0){
+        const feet = p.y + pw/2;
+        for (const pl of G_.platforms){
+          if (p.x + pw/2 > pl.x - pl.w/2 && p.x - pw/2 < pl.x + pl.w/2 &&
+              feet >= pl.y - 8 && feet <= pl.y + 14){
+            p.y = pl.y - pw/2;
+            p.vy = pl.spring ? SPRING : JUMP;
+            break;
+          }
         }
       }
 
       // поражение: упал ниже низа экрана
-      if (p.y < G_.cam - 40){ G_.over = true; endDoodle(); return; }
+      if (p.y - G_.cam > H + 60){ G_.over = true; endDoodle(); return; }
 
-      drawDoodle(x, G_, W, H);
+      drawDoodle(x, G_, W, H, pw);
       $("dScore").textContent = G_.score + " м";
       requestAnimationFrame(loop);
     })();
 
     G = { get token(){ return G_.token }, set over(v){ G_.over = v }, get over(){ return G_.over },
-          _g:G_, clearInput };
+          _g:G_, clearInput, authorizeTilt };
   }
-  function drawDoodle(x, g, W, H){
+  function authorizeTilt(){
+    try {
+      if (typeof DeviceOrientationEvent !== "undefined" &&
+          typeof DeviceOrientationEvent.requestPermission === "function")
+        DeviceOrientationEvent.requestPermission().catch(()=>{});
+    } catch(e){}
+  }
+  function drawDoodle(x, g, W, H, pw){
     // фон
     const grd = x.createLinearGradient(0, 0, 0, H);
     grd.addColorStop(0, "#2a1a4a"); grd.addColorStop(1, "#0b0820");
@@ -277,19 +286,22 @@ window.Games = (() => {
       if (pl.spring){ x.fillStyle = "#ffd76a"; x.beginPath();
         x.arc(pl.x, sy - 12, 5, 0, 7); x.fill(); }
     }
-    // питомец
+    // питомец (центр p.x,p.y; тело pw x pw)
     const p = g.player;
     const sx = p.x, sy = H - (p.y - off);
     // шлейф
     x.fillStyle = "rgba(122,245,235,.25)";
-    x.beginPath(); x.ellipse(sx, sy + 16, 16, 8, 0, 0, 7); x.fill();
+    x.beginPath(); x.ellipse(sx, sy + pw/2 + 4, pw/2, pw/4, 0, 0, 7); x.fill();
     // тело
-    x.fillStyle = "#ffd0e8"; x.beginPath(); x.arc(sx, sy, 18, 0, 7); x.fill();
+    x.fillStyle = "#ffd0e8";
+    roundRect(x, sx - pw/2, sy - pw/2, pw, pw, 10); x.fill();
+    // глазки
+    x.fillStyle = "#fff";
+    x.beginPath(); x.arc(sx - 7, sy - 3, 5, 0, 7); x.arc(sx + 7, sy - 3, 5, 0, 7); x.fill();
     x.fillStyle = "#1a0e22";
-    const ex = (p.face > 0 ? 6 : -6);
-    if (Math.sin(p.blink*3) > 0.96){ x.fillRect(sx+ex-4, sy-3, 8, 2); x.fillRect(sx+ex-12, sy-3, 8, 2); }
-    else { x.beginPath(); x.arc(sx+ex-4, sy-2, 3, 0, 7); x.arc(sx+ex+4, sy-2, 3, 0, 7); x.fill(); }
-    x.fillStyle = "#1a0e22"; x.beginPath(); x.arc(sx, sy+6, 3, 0, 7); x.fill();
+    const ex = (p.face > 0 ? 2 : -2);
+    if (Math.sin(p.blink*3) > 0.96){ x.fillRect(sx-9+ex, sy-4, 4, 2); x.fillRect(sx+5+ex, sy-4, 4, 2); }
+    else { x.beginPath(); x.arc(sx-7+ex, sy-3, 2.5, 0, 7); x.arc(sx+7+ex, sy-3, 2.5, 0, 7); x.fill(); }
   }
   function roundRect(x, rx, ry, w, h, r){
     x.beginPath();
