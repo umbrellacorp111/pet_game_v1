@@ -114,13 +114,14 @@ window.Games = (() => {
     finishPending("happy");
   }
 
-  /* ---------- Дудл-Джамп (прыжки вверх) — порт рабочего jump.html ---------- */
-  const DOODLE_W = 360, DOODLE_H = 600;
+  /* ---------- Дудл-Джамп — код из jump.html (вставлен как есть) ---------- */
+  const DOODLE_W = 400, DOODLE_H = 600;
   const GRAVITY = 0.22;
   const JUMP_STRENGTH = -8.5;
-  const MOVE_SPEED = 4.5;
-  const MIN_GAP = 60, MAX_GAP = 110;
-  const PLAT_COUNT = 7;
+  const PLATFORM_COUNT = 7;
+  const MAX_GAP = 110;
+  const MIN_GAP = 60;
+
   function startDoodle(){
     try {
       Api.call("doodle_start").then(d => {
@@ -130,150 +131,194 @@ window.Games = (() => {
       });
     } catch(e){ console.error("[startDoodle]", e) }
   }
+
   function runDoodle(token){
     const ov = $("doodleOv");
     ov.classList.add("on"); $("doodleEnd").classList.remove("on");
-    const c = $("dCanvas"), x = c.getContext("2d");
-    let W = DOODLE_W, H = DOODLE_H, dpr = Math.min(devicePixelRatio || 1, 2);
-    function size(){
-      const w = c.clientWidth, h = c.clientHeight;
-      if (w < 2 || h < 2) return false;
-      c.width = w * dpr; c.height = h * dpr;
-      x.setTransform(dpr, 0, 0, dpr, 0, 0);
-      W = w; H = h; return true;
+    const canvas = $("dCanvas");
+    const ctx = canvas.getContext("2d");
+    const W = canvas.clientWidth || DOODLE_W;
+    const H = canvas.clientHeight || DOODLE_H;
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    let score = 0;
+    let maxScore = 0;
+    let gameOver = false;
+
+    // Объект игрока
+    const player = {
+      x: W / 2 - 20,
+      y: H - 150,
+      width: 40,
+      height: 40,
+      vx: 0,
+      vy: 0,
+      color: '#10b981',
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.width, this.height, 10);
+        ctx.fill();
+
+        // Глазки
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(this.x + 12, this.y + 15, 5, 0, Math.PI * 2);
+        ctx.arc(this.x + 28, this.y + 15, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(this.x + 12, this.y + 12, 2.5, 0, Math.PI * 2);
+        ctx.arc(this.x + 28, this.y + 12, 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+
+    // Класс платформ
+    class Platform {
+      constructor(y) {
+        this.width = 70;
+        this.height = 15;
+        this.x = Math.random() * (W - this.width);
+        this.y = y;
+        this.color = '#f59e0b';
+      }
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.roundRect(this.x, this.y, this.width, this.height, 5);
+        ctx.fill();
+        ctx.fillStyle = '#d97706';
+        ctx.fillRect(this.x + 5, this.y + 4, this.width - 10, 3);
+      }
     }
-    size();
 
-    const G_ = { token, over:false, score:0, maxScore:0,
-      player:{ x:W/2 - 20, y:H - 150, width:40, height:40, vx:0, vy:JUMP_STRENGTH, color:"#10b981" },
-      platforms:[], keys:{}, tilt:0, pointerX:null, raf:0 };
+    let platforms = [];
 
-    function makePlatform(y){
-      return { width:70, height:15, x:Math.random()*(W-70), y, color:"#f59e0b" };
+    // Инициализация игры
+    function init() {
+      score = 0;
+      gameOver = false;
+      player.x = W / 2 - 20;
+      player.y = H - 150;
+      player.vx = 0;
+      player.vy = JUMP_STRENGTH;
+      platforms = [];
+
+      // Создаем первую платформу строго под игроком
+      let currentY = H - 50;
+      let firstPlatform = new Platform(currentY);
+      firstPlatform.x = W / 2 - 35;
+      platforms.push(firstPlatform);
+
+      // Генерируем остальные платформы с контролируемым шагом по высоте
+      for (let i = 1; i < PLATFORM_COUNT; i++) {
+        let gap = MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP);
+        currentY -= gap;
+        platforms.push(new Platform(currentY));
+      }
     }
-    // стартовая платформа строго под игроком + остальные с контролируемым шагом
-    G_.platforms = [];
-    let cy = H - 50;
-    const first = makePlatform(cy); first.x = W/2 - 35; G_.platforms.push(first);
-    for (let i = 1; i < PLAT_COUNT; i++){
-      cy -= MIN_GAP + Math.random()*(MAX_GAP - MIN_GAP);
-      G_.platforms.push(makePlatform(cy));
-    }
 
-    function highestPlatformY(){
-      let m = H; for (const p of G_.platforms) if (p.y < m) m = p.y; return m;
-    }
-
-    // ----- управление -----
-    function onKey(e, down){ G_.keys[e.code] = down; }
-    const kd = e => onKey(e, true), ku = e => onKey(e, false);
-    addEventListener("keydown", kd); addEventListener("keyup", ku);
-
-    function onTilt(e){ const g = e.gamma || 0; if (Math.abs(g) > 3) G_.tilt = Math.max(-1, Math.min(1, g/30)); }
-    addEventListener("deviceorientation", onTilt);
-
-    const pd = e => { e.preventDefault(); const r = c.getBoundingClientRect(); G_.pointerX = (e.clientX - r.left) * (W / r.width); };
-    const pu = () => { G_.pointerX = null; };
-    c.addEventListener("pointerdown", pd);
-    c.addEventListener("pointermove", pd);
-    addEventListener("pointerup", pu); addEventListener("pointercancel", pu);
-
+    // Управление клавиатурой
+    const keys = {};
+    const kd = (e) => { keys[e.code] = true; };
+    const ku = (e) => { keys[e.code] = false; };
+    window.addEventListener('keydown', kd);
+    window.addEventListener('keyup', ku);
     function clearInput(){
-      removeEventListener("keydown", kd); removeEventListener("keyup", ku);
-      removeEventListener("deviceorientation", onTilt);
-      c.removeEventListener("pointerdown", pd); c.removeEventListener("pointermove", pd);
-      removeEventListener("pointerup", pu); removeEventListener("pointercancel", pu);
+      window.removeEventListener('keydown', kd);
+      window.removeEventListener('keyup', ku);
     }
 
-    (function loop(){
-      if (G_.over) return;
-      if (!size()){ G_.raf = requestAnimationFrame(loop); return; }
-      const p = G_.player;
-
-      // горизонталь: клавиши (по e.code) > палец > наклон, иначе плавное торможение
-      if (G_.keys["ArrowLeft"] || G_.keys["KeyA"]) p.vx = -MOVE_SPEED;
-      else if (G_.keys["ArrowRight"] || G_.keys["KeyD"]) p.vx = MOVE_SPEED;
-      else if (G_.pointerX !== null) p.vx = Math.max(-MOVE_SPEED, Math.min(MOVE_SPEED, (G_.pointerX - p.x) * 0.6));
-      else if (G_.tilt) p.vx = G_.tilt * MOVE_SPEED;
-      else p.vx *= 0.75;
-
-      p.x += p.vx;
-      p.vy += GRAVITY;
-      p.y += p.vy;
-
-      // телепорт по краям
-      if (p.x + p.width < 0) p.x = W;
-      if (p.x > W) p.x = -p.width;
-
-      // камера
-      if (p.y < H/2){
-        const diff = H/2 - p.y;
-        p.y = H/2;
-        G_.score += Math.round(diff);
-        for (const pl of G_.platforms){
-          pl.y += diff;
-          if (pl.y > H){
-            pl.y = highestPlatformY() - (MIN_GAP + Math.random()*(MAX_GAP - MIN_GAP));
-            pl.x = Math.random()*(W - pl.width);
-          }
-        }
-      }
-
-      // приземление (только при падении)
-      if (p.vy > 0){
-        for (const pl of G_.platforms){
-          if (p.x + p.width > pl.x && p.x < pl.x + pl.width &&
-              p.y + p.height >= pl.y && p.y + p.height <= pl.y + pl.height + p.vy + 2){
-            p.vy = JUMP_STRENGTH;
-          }
-        }
-      }
-
-      // поражение
-      if (p.y > H){
-        G_.over = true;
-        G_.maxScore = Math.max(G_.maxScore, G_.score);
-        endDoodle();
-        return;
-      }
-
-      drawDoodle(x, G_, W, H);
-      $("dScore").textContent = Math.floor(G_.score/10) + " м";
-      G_.raf = requestAnimationFrame(loop);
-    })();
-
-    G = { get token(){ return G_.token }, set over(v){ G_.over = v }, get over(){ return G_.over },
-          _g:G_, clearInput, authorizeTilt };
-  }
-  function authorizeTilt(){
-    try {
-      if (typeof DeviceOrientationEvent !== "undefined" &&
-          typeof DeviceOrientationEvent.requestPermission === "function")
-        DeviceOrientationEvent.requestPermission().catch(()=>{});
-    } catch(e){}
-  }
-  function drawDoodle(x, g, W, H){
-    x.fillStyle = "#0b0820"; x.fillRect(0, 0, W, H);
-    // платформы
-    for (const pl of g.platforms){
-      x.fillStyle = pl.color;
-      roundRect(x, pl.x, pl.y, pl.width, pl.height, 6); x.fill();
+    // Нахождение самой верхней платформы
+    function getHighestPlatformY() {
+      let highestY = H;
+      platforms.forEach(p => {
+        if (p.y < highestY) highestY = p.y;
+      });
+      return highestY;
     }
-    // питомец
-    const p = g.player;
-    x.fillStyle = p.color;
-    roundRect(x, p.x, p.y, p.width, p.height, 10); x.fill();
-    // глазки
-    x.fillStyle = "#fff";
-    x.beginPath(); x.arc(p.x+12, p.y+13, 5, 0, 7); x.arc(p.x+28, p.y+13, 5, 0, 7); x.fill();
-    x.fillStyle = "#111";
-    x.beginPath(); x.arc(p.x+12, p.y+13, 2.5, 0, 7); x.arc(p.x+28, p.y+13, 2.5, 0, 7); x.fill();
-  }
-  function roundRect(x, rx, ry, w, h, r){
-    x.beginPath();
-    x.moveTo(rx+r, ry); x.arcTo(rx+w, ry, rx+w, ry+h, r);
-    x.arcTo(rx+w, ry+h, rx, ry+h, r); x.arcTo(rx, ry+h, rx, ry, r);
-    x.arcTo(rx, ry, rx+w, ry, r); x.closePath();
+
+    // Основной игровой цикл
+    function update() {
+      ctx.clearRect(0, 0, W, H);
+
+      if (!gameOver) {
+        // Снизили скорость перемещения: было 6, стало 4.5
+        if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -4.5;
+        else if (keys['ArrowRight'] || keys['KeyD']) player.vx = 4.5;
+        else player.vx *= 0.75; // Чуть более быстрое, но плавное торможение
+
+        player.x += player.vx;
+        player.vy += GRAVITY;
+        player.y += player.vy;
+
+        // Телепортация по краям экрана
+        if (player.x + player.width < 0) player.x = W;
+        if (player.x > W) player.x = -player.width;
+
+        // Движение камеры
+        if (player.y < H / 2) {
+          let diff = H / 2 - player.y;
+          player.y = H / 2;
+          score += Math.round(diff);
+
+          platforms.forEach(p => {
+            p.y += diff;
+
+            // Перенос упавшей платформы наверх с учетом ограничений по высоте
+            if (p.y > H) {
+              let highestY = getHighestPlatformY();
+              // Новая платформа ставится выше самой верхней на безопасном расстоянии
+              let gap = MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP);
+              p.y = highestY - gap;
+              p.x = Math.random() * (W - p.width);
+            }
+          });
+        }
+
+        // Столкновение с платформами (только при падении)
+        if (player.vy > 0) {
+          platforms.forEach(p => {
+            if (player.x + player.width > p.x &&
+                player.x < p.x + p.width &&
+                player.y + player.height >= p.y &&
+                player.y + player.height <= p.y + p.height + player.vy + 2) { // Добавлен запас +2 для точности
+                  player.vy = JUMP_STRENGTH;
+            }
+          });
+        }
+
+        // Проигрыш
+        if (player.y > H) {
+          gameOver = true;
+          if (score > maxScore) maxScore = score;
+        }
+
+        $("dScore").textContent = Math.floor(score / 10) + " м";
+      }
+
+      // Отрисовка
+      platforms.forEach(p => p.draw());
+      player.draw();
+
+      if (gameOver) { endDoodle(); return; }
+
+      requestAnimationFrame(update);
+    }
+
+    init();
+    update();
+
+    G = {
+      get token(){ return token; },
+      set over(v){ gameOver = v; },
+      get over(){ return gameOver; },
+      _g: { token: token, get score(){ return score; } },
+      clearInput
+    };
   }
   async function endDoodle(){
     try {
