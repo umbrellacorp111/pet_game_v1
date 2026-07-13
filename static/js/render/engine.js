@@ -247,9 +247,11 @@ window.Engine = (() => {
       }
     });
 
+    let paused = false;
     (function loop(){
       requestAnimationFrame(loop);
       const dt = Math.min(clock.getDelta(), .05);
+      if (paused) return;
       const t = clock.getElapsedTime();
       for (const fn of tickers){ try { fn(dt, t) } catch(e){ console.error("[tick]", e) } }
       ambientUpdate(dt);
@@ -283,6 +285,7 @@ window.Engine = (() => {
     init, cam, lights, particles, raycast, emojiTex,
     onTick(fn){ tickers.push(fn) },
     offTick(fn){ const i = tickers.indexOf(fn); if (i >= 0) tickers.splice(i, 1); },
+    setPaused(v){ paused = !!v; },
     get scene(){ return scene }, get camera(){ return camera },
   };
 })();

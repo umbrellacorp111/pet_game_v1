@@ -130,6 +130,7 @@ window.Games = (() => {
       Api.call("doodle_start").then(d => {
         if (!d){ return; }
         GS.set("S", d); UI.render();
+        try { if (window.Engine) window.Engine.setPaused(true); } catch(e){}
         runDoodle(d.token);
       });
     } catch(e){ console.error("[startDoodle]", e) }
@@ -278,75 +279,99 @@ window.Games = (() => {
       return highestY;
     }
 
-    // Основной игровой цикл
-    function update() {
-      ctx.clearRect(0, 0, W, H);
+    // Основной игровой цикл (фиксированный шаг 60 Гц → скорость не зависит от FPS)
+    let lastT = performance.now();
+    let acc = 0;
+    const STEP = 1000 / 60;
 
-      if (!gameOver) {
-        // Тач/мышь (палец тянет питомца) > клавиатура > плавное торможение
-        if (pointerX !== null) {
-          const target = pointerX - player.width / 2;
-          player.vx = Math.max(-MOVE_SPEED, Math.min(MOVE_SPEED, (target - player.x) * 0.4));
-        } else if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -4.5;
-        else if (keys['ArrowRight'] || keys['KeyD']) player.vx = 4.5;
-        else player.vx *= 0.75; // Чуть более быстрое, но плавное торможение
+    function stepSim(){
+      if (gameOver) return;
+      const diff = Math.min(1, score / 1500);            // 0..1 по мере подъёма
+      const grav = GRAVITY + diff * 0.12;                // падает быстрее → меньше времени на реакцию
+      const curMaxGap = Math.min(MAX_GAP + diff * 40, 96); // зазор растёт, но остаётся достижимым
+      const curWidth = Math.max(45, 70 - diff * 25);     // платформы уже → сложнее попасть
+      const drift = diff * 0.5;                          // мир медленно оседает → нельзя стоять на месте
 
-        player.x += player.vx;
-        player.vy += GRAVITY;
-        player.y += player.vy;
+      // Управление: тач/мышь > клавиатура > плавное торможение
+      if (pointerX !== null) {
+        const target = pointerX - player.width / 2;
+        player.vx = Math.max(-MOVE_SPEED, Math.min(MOVE_SPEED, (target - player.x) * 0.4));
+      } else if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -4.5;
+      else if (keys['ArrowRight'] || keys['KeyD']) player.vx = 4.5;
+      else player.vx *= 0.75;
 
-        // Телепортация по краям экрана
-        if (player.x + player.width < 0) player.x = W;
-        if (player.x > W) player.x = -player.width;
+      player.x += player.vx;
+      player.vy += grav;
+      player.y += player.vy;
 
-        // Движение камеры
-        if (player.y < H / 2) {
-          let diff = H / 2 - player.y;
-          player.y = H / 2;
-          score += Math.round(diff);
+      if (player.x + player.width < 0) player.x = W;
+      if (player.x > W) player.x = -player.width;
 
-          platforms.forEach(p => {
-            p.y += diff;
+      // мир оседает (усложнение) — заставляет постоянно карабкаться
+      if (drift > 0) platforms.forEach(p => { p.y += drift; });
 
-            // Перенос упавшей платформы наверх с учетом ограничений по высоте
-            if (p.y > H) {
-              let highestY = getHighestPlatformY();
-              // Новая платформа ставится выше самой верхней на безопасном расстоянии
-              let gap = MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP);
-              p.y = highestY - gap;
-              p.x = Math.random() * (W - p.width);
-              p.spring = Math.random() < SPRING_CHANCE;
-            }
-          });
-        }
+      // Движение камеры
+      if (player.y < H / 2) {
+        let d = H / 2 - player.y;
+        player.y = H / 2;
+        score += Math.round(d);
 
-        // Столкновение с платформами (только при падении)
-        if (player.vy > 0) {
-          platforms.forEach(p => {
-            if (player.x + player.width > p.x &&
-                player.x < p.x + p.width &&
-                player.y + player.height >= p.y &&
-                player.y + player.height <= p.y + p.height + player.vy + 2) { // Добавлен запас +2 для точности
-                  player.vy = p.spring ? SPRING_STRENGTH : JUMP_STRENGTH;
-            }
-          });
-        }
+        platforms.forEach(p => {
+          p.y += d;
 
-        // Проигрыш
-        if (player.y > H) {
-          gameOver = true;
-          if (score > maxScore) maxScore = score;
-        }
-
-        $("dScore").textContent = Math.floor(score / 10) + " м";
+          // Перенос упавшей платформы наверх с учетом ограничений по высоте
+          if (p.y > H) {
+            let highestY = getHighestPlatformY();
+            let gap = MIN_GAP + Math.random() * (curMaxGap - MIN_GAP);
+            p.y = highestY - gap;
+            p.x = Math.random() * (W - p.width);
+            p.spring = Math.random() < SPRING_CHANCE;
+            p.width = curWidth;
+          }
+        });
       }
 
-      // Отрисовка
+      // Столкновение с платформами (только при падении)
+      if (player.vy > 0) {
+        platforms.forEach(p => {
+          if (player.x + player.width > p.x &&
+              player.x < p.x + p.width &&
+              player.y + player.height >= p.y &&
+              player.y + player.height <= p.y + p.height + player.vy + 2) { // запас +2 для точности
+                player.vy = p.spring ? SPRING_STRENGTH : JUMP_STRENGTH;
+          }
+        });
+      }
+
+      if (player.y > H) {
+        gameOver = true;
+        if (score > maxScore) maxScore = score;
+      }
+    }
+
+    function update(now){
+      ctx.clearRect(0, 0, W, H);
+      let dt = (now || performance.now()) - lastT; lastT = now || performance.now();
+      if (dt > 100) dt = 100;             // не накапливать после сворачивания вкладки
+      acc += dt;
+      let steps = 0;
+      while (acc >= STEP && steps < 5){
+        stepSim();
+        acc -= STEP;
+        steps++;
+        if (gameOver) break;
+      }
+
+      if (gameOver){
+        platforms.forEach(p => p.draw());
+        player.draw();
+        endDoodle();
+        return;
+      }
+
+      $("dScore").textContent = Math.floor(score / 10) + " м";
       platforms.forEach(p => p.draw());
       player.draw();
-
-      if (gameOver) { endDoodle(); return; }
-
       requestAnimationFrame(update);
     }
 
@@ -378,6 +403,7 @@ window.Games = (() => {
     try {
       $("doodleOv").classList.remove("on");
       if (G && G.clearInput) G.clearInput();
+      try { if (window.Engine) window.Engine.setPaused(false); } catch(e){}
       finishPending("happy");
     } catch(e){ console.error("[closeDoodle]", e) }
   }
@@ -386,6 +412,7 @@ window.Games = (() => {
     if (G && G.clearInput) G.clearInput();
     $("doodleOv").classList.remove("on");
     $("doodleEnd").classList.remove("on");
+    try { if (window.Engine) window.Engine.setPaused(false); } catch(e){}
     finishPending("happy");
   }
 
