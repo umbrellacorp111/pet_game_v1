@@ -845,8 +845,8 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 .dgOv{background:linear-gradient(180deg,#1a0e22 0%,#0a0612 70%);}
 .dgOv .gScore{font-family:var(--font-mono,monospace);font-variant-numeric:tabular-nums}
 /* прозрачный бой, чтобы 3D-герой был виден за оверлеем */
-.dgFight{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;
-  justify-content:flex-start;gap:14px;padding:18px 16px 22px;background:transparent}
+.dgArena{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:flex-start;gap:12px;padding:14px 16px 18px;background:transparent}
 .dgHub{position:relative;flex:1;display:flex;flex-direction:column;align-items:center;
   gap:14px;padding:18px 16px;overflow:auto}
 .dgStatRow{display:flex;gap:18px;font-size:14px;font-weight:800;color:rgba(255,255,255,.92)}
@@ -872,10 +872,9 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 .dgEnter:disabled{background:rgba(255,255,255,.1);color:rgba(255,255,255,.45);box-shadow:none;border-color:transparent;cursor:default}
 .dgHint{font-size:11px;color:rgba(255,255,255,.5);text-align:center;line-height:1.4;max-width:340px}
 .dgFloorLbl{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:800;color:#ffd76a;letter-spacing:.3px}
-.dgEnemyBox{position:relative;margin-top:6px}
-.dgEnemy{font-size:84px;line-height:1;cursor:pointer;user-select:none;filter:drop-shadow(0 6px 12px rgba(0,0,0,.6));
-  transition:transform .08s;touch-action:manipulation}
-.dgEnemy:active{transform:scale(.92)}
+.dgCombo{position:absolute;top:10px;right:16px;font-family:'Unbounded',sans-serif;font-size:22px;font-weight:900;
+  color:#ff5e8a;text-shadow:0 2px 6px rgba(0,0,0,.7);transition:opacity .2s, transform .1s;pointer-events:none}
+.dgCombo.bump{transform:scale(1.25)}
 .dgBars{width:min(92vw,340px);display:flex;flex-direction:column;gap:8px}
 .dgBar{position:relative;height:16px;border-radius:9px;background:rgba(0,0,0,.45);
   box-shadow:inset 0 2px 5px rgba(0,0,0,.6);overflow:hidden}
@@ -890,11 +889,25 @@ nav .t.on{color:var(--gold)} nav .t.on .i{transform:translateY(-4px) scale(1.2)}
 .dgLootItem{font-size:18px;font-weight:800;padding:6px 10px;border-radius:10px;background:rgba(255,215,106,.16);
   box-shadow:inset 0 0 0 1px rgba(255,215,106,.4);animation:dgPop .4s cubic-bezier(.3,1.5,.4,1)}
 @keyframes dgPop{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12)}100%{transform:scale(1)}}
-.dgFightBtns{display:flex;gap:10px;margin-top:6px}
-.dgFightBtns .btn{flex:1;max-width:160px;padding:12px 0;font-size:14px;font-weight:800;border-radius:12px;
-  border:2px solid #0f172b;cursor:pointer;color:#fff}
-.dgLeave{background:linear-gradient(180deg,#5a4a78,#3a2f55)}
-.dgNext{background:linear-gradient(180deg,#ff8a3d,#ff6a1a);color:#0b0820}
+.dgKi{width:min(92vw,340px);display:flex;align-items:center;gap:10px}
+.dgKiBar{flex:1;height:14px;border-radius:8px;background:rgba(0,0,0,.45);box-shadow:inset 0 2px 5px rgba(0,0,0,.6);
+  overflow:hidden}
+.dgKiFill{height:100%;width:0%;border-radius:8px;background:linear-gradient(90deg,#7af5eb,#4f7bff);
+  transition:width .15s ease-out}
+.dgKiBtn{padding:9px 14px;border-radius:10px;border:2px solid #0f172b;font-weight:900;font-size:13px;
+  color:#0b0820;background:rgba(255,255,255,.18);cursor:pointer;font-family:var(--font-mono,monospace);opacity:.7}
+.dgKiBtn.ready{background:linear-gradient(180deg,#ffd76a,#ff8a3d);opacity:1;
+  box-shadow:0 0 14px rgba(255,138,61,.8);animation:dgKiPulse .8s ease-in-out infinite}
+@keyframes dgKiPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.dgBtns{width:min(92vw,340px);display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:2px}
+.dgBtn{padding:14px 0;font-size:14px;font-weight:800;border-radius:12px;border:2px solid #0f172b;
+  cursor:pointer;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.4);box-shadow:3px 3px 0 #0f172b;
+  transition:transform .06s, box-shadow .06s;touch-action:manipulation}
+.dgBtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #0f172b}
+.dgBtn.atk{background:linear-gradient(180deg,#ff8a3d,#ff6a1a);color:#0b0820}
+.dgBtn.dodge{background:linear-gradient(180deg,#4f7bff,#3a52cc)}
+.dgBtn.block{background:linear-gradient(180deg,#19b97a,#0f8a5a)}
+.dgBtn.leave{grid-column:1 / -1;background:linear-gradient(180deg,#5a4a78,#3a2f55)}
 .dgFloat{position:absolute;left:50%;top:-6px;transform:translateX(-50%);font-weight:900;font-size:18px;
   color:#ff5e8a;text-shadow:0 1px 3px rgba(0,0,0,.8);pointer-events:none;animation:dgFloat 0.8s ease-out forwards}
 .dgFloat.big{font-size:26px;color:#ffd76a}

@@ -390,7 +390,7 @@ window.UI = (() => {
       else if (a === "fishing") Games.startFishing();
       else if (a === "mineslot") Games.startMine();
       else if (a === "alchemy") Games.startAlchemy();
-      else if (a === "dungeon") Games.startDungeon();
+      else if (a === "dungeon") Dungeon.start();
       else if (a === "shower") shower();
       else if (a === "arena") Arena.start();
       else if (a === "sleep" || a === "wake") sleep();

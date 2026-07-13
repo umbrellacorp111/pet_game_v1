@@ -5,6 +5,7 @@
    жизнь с AFK-стадиями. Тач-зоны = эскалация и цепные реакции. */
 window.Anim = (() => {
   let H = null;                 // активный герой
+  let frozen = false;           // hit-stop: ставим mixer на паузу
   const off = {}, tgt = {};     // текущие/целевые смещения костей
   let posY = 0, posYT = 0;      // смещение root по Y (сесть/лечь)
   let blend = 6;                // скорость бленда
@@ -393,7 +394,7 @@ window.Anim = (() => {
     }
 
     /* FBX/VRM: обновляем AnimationMixer */
-    if ((H.isFBX || H.isVRM) && H.mixer){
+    if (!frozen && (H.isFBX || H.isVRM) && H.mixer){
       H.mixer.update(dt);
     }
 
@@ -614,6 +615,7 @@ window.Anim = (() => {
   return {
     attach, simpleLife, clearSimple, play, touch, setEmotion, syncStats,
     tickInit(){ Engine.onTick(tick) },
+    freeze(v){ frozen = !!v },
     get sleeping(){ return sleepMode },
     get emotion(){ return emoState.cur },
   };
