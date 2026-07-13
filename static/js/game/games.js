@@ -137,10 +137,12 @@ window.Games = (() => {
     ov.classList.add("on"); $("doodleEnd").classList.remove("on");
     const canvas = $("dCanvas");
     const ctx = canvas.getContext("2d");
-    const W = canvas.clientWidth || DOODLE_W;
-    const H = canvas.clientHeight || DOODLE_H;
     const dpr = Math.min(devicePixelRatio || 1, 2);
-    canvas.width = W * dpr; canvas.height = H * dpr;
+    // размер берём от реально отрисованного канваса (он на весь оверлей)
+    const rect = canvas.getBoundingClientRect();
+    const W = Math.max(2, rect.width || DOODLE_W);
+    const H = Math.max(2, rect.height || DOODLE_H);
+    canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     let score = 0;

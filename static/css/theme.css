@@ -555,7 +555,12 @@ nav .t.on::before{content:"";position:absolute;top:0;left:8%;right:8%;height:3px
   font-weight:900;text-shadow:3px 3px 0 var(--ink-display);opacity:0;
   transition:opacity var(--dur-mid)}
 #gCanvas{flex:1;background:#16213A}
-#dCanvas{flex:1;touch-action:none;background:#0b0820}
+/* Дудл-Джамп: канвас на весь оверлей (доходит до подсказки), HUD/подсказка поверх */
+#doodleOv #dCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;
+  z-index:1;touch-action:none;background:#0b0820}
+#doodleOv .gHud{position:relative;z-index:2}
+#doodleOv .fHint{z-index:2}
+#doodleOv .gEnd{z-index:3}
 .miniBtn{background:rgba(255,255,255,.15);color:#eaf; border:1px solid rgba(255,255,255,.3); border-radius:6px; font-size:11px; padding:1px 6px; margin-left:4px; cursor:pointer}
 .gEnd.on{display:flex}
 .gEnd{position:absolute;inset:0;background:rgba(15,23,43,.85);
