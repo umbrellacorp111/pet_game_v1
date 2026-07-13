@@ -555,6 +555,8 @@ nav .t.on::before{content:"";position:absolute;top:0;left:8%;right:8%;height:3px
   font-weight:900;text-shadow:3px 3px 0 var(--ink-display);opacity:0;
   transition:opacity var(--dur-mid)}
 #gCanvas{flex:1;background:#16213A}
+#dCanvas{flex:1;touch-action:none;background:#0b0820}
+.gEnd.on{display:flex}
 .gEnd{position:absolute;inset:0;background:rgba(15,23,43,.85);
   display:flex;align-items:center;justify-content:center;display:none}
 .gEnd.show{display:flex}

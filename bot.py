@@ -33,6 +33,7 @@ GAME_COST_ENERGY = 12
 CATCH_MIN_SEC, CATCH_MAX_REWARD, CATCH_RATE = 18, 45, 2.2
 SIMON_LEN, SIMON_REWARD_PER, SIMON_MIN_SEC_PER = 12, 6, 0.7
 GAME_COOLDOWN = 40
+DOODLE_MIN_SEC, DOODLE_MAX_REWARD, DOODLE_RATE = 12, 60, 2.0
 
 # ---- Шахта Удачи (казино-слот) ----
 MINE_BETS = (10, 25, 50, 100, 200)
@@ -165,7 +166,8 @@ def init_db():
             game_token TEXT DEFAULT '', game_started REAL DEFAULT 0, last_game REAL DEFAULT 0,
             simon_seq TEXT DEFAULT '', simon_started REAL DEFAULT 0, last_simon REAL DEFAULT 0,
             fishing_started REAL DEFAULT 0, last_fishing REAL DEFAULT 0,
-            best_score INTEGER DEFAULT 0, best_simon INTEGER DEFAULT 0, best_fishing INTEGER DEFAULT 0, total_games INTEGER DEFAULT 0,
+            doodle_started REAL DEFAULT 0, last_doodle REAL DEFAULT 0,
+            best_score INTEGER DEFAULT 0, best_simon INTEGER DEFAULT 0, best_fishing INTEGER DEFAULT 0, best_doodle INTEGER DEFAULT 0, total_games INTEGER DEFAULT 0,
             arena_charge INTEGER DEFAULT 60,
             trophies INTEGER DEFAULT 0, wins INTEGER DEFAULT 0, losses INTEGER DEFAULT 0,
             ghost_score INTEGER DEFAULT 0,
@@ -178,6 +180,11 @@ def init_db():
         # migration: add fishing columns if missing
         for col in ("fishing_started", "last_fishing", "best_fishing"):
             coltype = "INTEGER DEFAULT 0" if col == "best_fishing" else "REAL DEFAULT 0"
+            try: c.execute(f"ALTER TABLE players ADD COLUMN {col} {coltype}")
+            except: pass
+        # migration: add doodle columns if missing
+        for col in ("doodle_started", "last_doodle", "best_doodle"):
+            coltype = "INTEGER DEFAULT 0" if col == "best_doodle" else "REAL DEFAULT 0"
             try: c.execute(f"ALTER TABLE players ADD COLUMN {col} {coltype}")
             except: pass
         # migration: add mine slot columns if missing
@@ -364,6 +371,7 @@ def public_state(p, extra=None):
         "sleeping": bool(p["sleeping"]),
         "streak": p["streak"], "best_streak": p["best_streak"],
         "best_score": p["best_score"], "best_simon": p["best_simon"], "best_fishing": p.get("best_fishing", 0),
+        "best_doodle": p.get("best_doodle", 0),
         "best_mine": p.get("best_mine", 0),
         "arena_charge": p["arena_charge"], "trophies": p["trophies"],
         "wins": p["wins"], "losses": p["losses"],
@@ -390,6 +398,7 @@ def public_state(p, extra=None):
         "game_cd": max(0, int(GAME_COOLDOWN - (now - p["last_game"]))),
         "simon_cd": max(0, int(GAME_COOLDOWN - (now - p["last_simon"]))),
         "fishing_cd": max(0, int(GAME_COOLDOWN - (now - p.get("last_fishing", 0)))),
+        "doodle_cd": max(0, int(GAME_COOLDOWN - (now - p.get("last_doodle", 0)))),
     }
     if p.pop("_season_reward", None):
         st["season_reward"] = True
@@ -608,6 +617,35 @@ async def api_fishing_finish(request):
     lvls = add_xp(p, 10 + score // 4)
     save(p, "fishing_started","coins","energy","fun","hunger","last_fishing",
          "total_games","best_fishing","xp","level")
+    add_charge(p, CHARGE_PER_GAME)
+    bump_quest(p, "game"); bump_quest(p, "earn", reward)
+    return ok(p, reward=reward, score=score, levelup=lvls, new_ach=check_achievements(p))
+
+# ---------- API: дудл-джамп (прыжки вверх) ----------
+async def api_doodle_start(request):
+    p = await auth(request)
+    blocked = game_gate(p, "last_doodle")
+    if blocked: return blocked
+    p["doodle_started"] = time.time()
+    save(p, "doodle_started")
+    return ok(p)
+
+async def api_doodle_finish(request):
+    p = await auth(request); body = request["body"]
+    if not p.get("doodle_started"):
+        return err("Прыжки не были начаты")
+    elapsed = time.time() - p["doodle_started"]
+    p["doodle_started"] = 0
+    score = max(0, int(body.get("score", 0)))          # высота в «метрах»
+    if elapsed < DOODLE_MIN_SEC:
+        save(p, "doodle_started"); return err("Прыжки не засчитаны")
+    reward = min(DOODLE_MAX_REWARD, int(score / DOODLE_RATE))
+    p["coins"] += reward; p["last_doodle"] = time.time()
+    p["best_doodle"] = max(p.get("best_doodle", 0), score)
+    apply_game_cost(p)
+    lvls = add_xp(p, 10 + score // 5)
+    save(p, "doodle_started","coins","energy","fun","hunger","last_doodle",
+         "total_games","best_doodle","xp","level")
     add_charge(p, CHARGE_PER_GAME)
     bump_quest(p, "game"); bump_quest(p, "earn", reward)
     return ok(p, reward=reward, score=score, levelup=lvls, new_ach=check_achievements(p))
@@ -986,7 +1024,8 @@ async def main():
     app.router.add_static("/static", STATIC)
     for name in ("state","setname","daily","feed","shower","sleep",
                  "game_start","game_finish","simon_start","simon_finish",
-                 "fishing_start","fishing_finish","mine_spin",
+                  "fishing_start","fishing_finish","mine_spin",
+                  "doodle_start","doodle_finish",
                   "alchemy_move","alchemy_boost",
                    "battle_start","battle_finish","arena_buy",
                  "claim_quest","buy","equip","top"):

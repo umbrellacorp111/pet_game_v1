@@ -131,7 +131,9 @@ window.UI = (() => {
         <div class="bigAct g-viol ${s.simon_cd>0?'dis':''}" data-action="simon" style="flex:1;min-width:0">
           🎵 Ритм<small>${s.simon_cd>0?"отдых "+s.simon_cd+" c":"6 🪙/шаг · рекорд "+s.best_simon+"/"+s.simon_len}</small></div></div>
       <div class="bigAct g-sky ${s.fishing_cd>0?'dis':''}" data-action="fishing" style="margin-top:8px">
-        🎣 Рыбалка<small>${s.fishing_cd>0?"отдых "+s.fishing_cd+" c":"до 40 🪙 · рекорд "+(s.best_fishing||0)}</small></div>` },
+        🎣 Рыбалка<small>${s.fishing_cd>0?"отдых "+s.fishing_cd+" c":"до 40 🪙 · рекорд "+(s.best_fishing||0)}</small></div>
+      <div class="bigAct g-mint ${s.doodle_cd>0?'dis':''}" data-action="doodle" style="margin-top:8px">
+        🦘 Дудл-Джамп<small>${s.doodle_cd>0?"отдых "+s.doodle_cd+" c":"прыгай вверх · рекорд "+(s.best_doodle||0)+" м"}</small></div>` },
     casino(){ const s = S(); if (!s) return '';
       return `<div class="bigAct g-gold" data-action="mineslot">
         🎰 Шахта Удачи<small>ставки 10–200 🪙 · лучший куш ${(s.best_mine||0)} 🪙</small></div>
@@ -386,6 +388,7 @@ window.UI = (() => {
       else if (a === "catch") Games.startCatch();
       else if (a === "simon") Games.startSimon();
       else if (a === "fishing") Games.startFishing();
+      else if (a === "doodle") Games.startDoodle();
       else if (a === "mineslot") Games.startMine();
       else if (a === "alchemy") Games.startAlchemy();
       else if (a === "shower") shower();
@@ -419,6 +422,7 @@ window.UI = (() => {
       if (s.game_cd > 0){ s.game_cd--; changed = true }
       if (s.simon_cd > 0){ s.simon_cd--; changed = true }
       if (s.fishing_cd > 0){ s.fishing_cd--; changed = true }
+      if (s.doodle_cd > 0){ s.doodle_cd--; changed = true }
       if (changed){
         const room = GS.room;
         const btns = $("roomPanel").querySelectorAll("[data-action]");
@@ -437,6 +441,10 @@ window.UI = (() => {
             sm.textContent = s.fishing_cd > 0
               ? "отдых "+s.fishing_cd+" c" : "до 40 🪙 · рекорд "+(s.best_fishing||0);
             btn.classList.toggle("dis", s.fishing_cd > 0);
+          } else if (btn.dataset.action === "doodle"){
+            sm.textContent = s.doodle_cd > 0
+              ? "отдых "+s.doodle_cd+" c" : "прыгай вверх · рекорд "+(s.best_doodle||0)+" м";
+            btn.classList.toggle("dis", s.doodle_cd > 0);
           }
         });
       }

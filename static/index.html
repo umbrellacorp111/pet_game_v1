@@ -170,6 +170,19 @@
     <button class="btn" onclick="Games.closeFishing()">Забрать награду</button></div></div>
 </div>
 
+<!-- МИНИ-ИГРА: Дудл-Джамп (прыжки вверх) -->
+<div class="gameOv" id="doodleOv">
+  <div class="gHud"><span class="font-d" style="font-size:13px">🦘 ДУДЛ-ДЖАМП</span>
+    <span class="gScore" id="dScore">0 м</span>
+    <button class="gExit" onclick="Games.exitDoodle()">✕</button></div>
+  <canvas id="dCanvas"></canvas>
+  <div class="fHint" id="dHint">📱 Наклоняй телефон / стрелки ←→ / тяни пальцем, чтобы лететь вбок</div>
+  <div class="gEnd" id="doodleEnd"><div class="modal glass">
+    <div class="huge">🏔️</div><h3 class="font-d">Приземлился!</h3>
+    <p id="doodleEndText"></p>
+    <button class="btn" onclick="Games.closeDoodle()">Забрать награду</button></div></div>
+</div>
+
 <!-- ТУТОРИАЛ: Шахта Удачи -->
 <div class="overlay" id="mineTut">
   <div class="mineTutCard">
