@@ -928,6 +928,8 @@ window.Games = (() => {
 
   /* ---------- АЛХИМИК (2048-merge) ---------- */
   const ALC_SIZE = 4, ALC_PAD = 10, ALC_GAP = 8;
+  const ALC_RANK_COLORS = ["#7a4f24","#8a5a2a","#6e727a","#8b8f98","#b3b7c0",
+    "#f08a1e","#f6b21a","#ffd76a","#33c7b8","#4ad9cb","#a06bff"];
   let AL = null;
   function hasMove(b){
     for (let r=0;r<ALC_SIZE;r++) for (let c=0;c<ALC_SIZE;c++){
@@ -1005,6 +1007,12 @@ window.Games = (() => {
     alcGallery(); alcTalismans();
     const b = (AL && AL.board) || st.board || [];
     $("alcNewGame").style.display = (!st.locked && !hasMove(b)) ? "block" : "none";
+    // прогресс-бар цели «до ранга tal_rank»
+    let maxR = 0;
+    for (let r=0;r<ALC_SIZE;r++) for (let c=0;c<ALC_SIZE;c++){ const v=(b[r]&&b[r][c])||0; if (v>maxR) maxR=v; }
+    (st.items||[]).forEach(r => { if (r>maxR) maxR=r; });
+    const pct = Math.min(100, Math.round(maxR / st.tal_rank * 100));
+    const fill = $("alcGoalFill"); if (fill) fill.style.width = pct + "%";
   }
   // статичная отрисовка плиток по AL.board (+ эффекты pop/merge)
   function alcRenderTiles(fx){
@@ -1025,7 +1033,30 @@ window.Games = (() => {
       }
       if (merged.some(m=>m[0]===r && m[1]===c)){
         inner.classList.add("merge"); setTimeout(()=>inner.classList.remove("merge"),440);
+        alcMergeFx(r, c, v, sz);
       }
+    }
+    if (merged.length){
+      const sm = $("alcSmoke"); if (sm){ sm.classList.remove("puff"); void sm.offsetWidth; sm.classList.add("puff"); }
+    }
+  }
+  // искры в точке слияния
+  function alcMergeFx(r, c, v, sz){
+    const layer = $("alcTiles"); if (!layer) return;
+    const {x,y} = alcXY(r,c,sz);
+    const cx = x + sz/2, cy = y + sz/2;
+    const col = ALC_RANK_COLORS[Math.min(v, ALC_RANK_COLORS.length)-1] || "#ffd76a";
+    const n = v >= 9 ? 9 : 6;
+    for (let i=0;i<n;i++){
+      const sp = document.createElement("div");
+      sp.className = "alcSpark";
+      const ang = Math.random()*Math.PI*2, dist = sz*(0.35 + Math.random()*0.4);
+      sp.style.left = cx + "px"; sp.style.top = cy + "px";
+      sp.style.color = col;
+      sp.style.setProperty("--dx", Math.cos(ang)*dist + "px");
+      sp.style.setProperty("--dy", Math.sin(ang)*dist + "px");
+      layer.appendChild(sp);
+      setTimeout(()=>sp.remove(), 540);
     }
   }
   // анимация скольжения: рисуем плитки на старых местах и едем в новые
@@ -1097,7 +1128,7 @@ window.Games = (() => {
     $("alcSwipeHint").classList.add("hide");
     Sfx.play("tap"); hap("light");
     alcAnimateSlide(sim);
-    if (sim.merges.length) setTimeout(()=>Sfx.play("pop"), 120);
+    if (sim.merges.length) setTimeout(()=>Sfx.play("merge"), 120);
     // ход на сервере (источник правды) + ждём завершения анимации
     const [d] = await Promise.all([ Api.call("alchemy_move",{move:dir}), alcSleep(160) ]);
     AL.busy = false;
@@ -1107,6 +1138,9 @@ window.Games = (() => {
     AL.board = alcCloneBoard(GS.S.alchemy.board);
     AL.fx = { merges: d.merges || [], spawned: d.spawned };
     alcRender();
+    if ((d.merges||[]).some(m => { const cur = GS.S.alchemy.board[m[0]][m[1]]; return cur >= 9; })){
+      Sfx.play("sparkle"); hap("medium");
+    }
     if (d.new_item){
       UI.confetti(); Sfx.play("fanfare"); hap("ok");
       UI.notify("⚗️", "Талисман выплавлен: " + GS.S.alchemy.ranks[d.new_item-1] + "! Примени его в Шахте 🔮");

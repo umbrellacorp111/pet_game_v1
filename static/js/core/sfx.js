@@ -30,6 +30,7 @@ window.Sfx = (() => {
   const bank = {
     tap:    () => tone(300,520,.07,"square",.07),
     pop:    () => tone(300,520,.08,"square",.08),
+    merge:  () => tone(460,720,.1,"triangle",.1),
     coin:   () => tone(880,1320,.1,"triangle",.13),
     err:    () => tone(220,140,.2,"sawtooth",.08),
     bad:    () => tone(160,90,.25,"sawtooth",.12),
