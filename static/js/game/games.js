@@ -118,9 +118,12 @@ window.Games = (() => {
   const DOODLE_W = 400, DOODLE_H = 600;
   const GRAVITY = 0.22;
   const JUMP_STRENGTH = -8.5;
+  const MOVE_SPEED = 4.5;
   const PLATFORM_COUNT = 7;
   const MAX_GAP = 110;
   const MIN_GAP = 60;
+  const SPRING_CHANCE = 0.15;     // шанс пружины на платформе
+  const SPRING_STRENGTH = -18;    // сильный отскок от пружины
 
   function startDoodle(){
     try {
@@ -186,6 +189,7 @@ window.Games = (() => {
         this.x = Math.random() * (W - this.width);
         this.y = y;
         this.color = '#f59e0b';
+        this.spring = Math.random() < SPRING_CHANCE;
       }
       draw() {
         ctx.fillStyle = this.color;
@@ -194,6 +198,18 @@ window.Games = (() => {
         ctx.fill();
         ctx.fillStyle = '#d97706';
         ctx.fillRect(this.x + 5, this.y + 4, this.width - 10, 3);
+        if (this.spring) {
+          // пружина сверху платформы
+          const cx = this.x + this.width / 2;
+          ctx.fillStyle = '#e2e8f0';
+          ctx.fillRect(cx - 9, this.y - 11, 18, 4);
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(cx - 6, this.y); ctx.lineTo(cx + 6, this.y - 3);
+          ctx.lineTo(cx - 6, this.y - 6); ctx.lineTo(cx + 6, this.y - 9);
+          ctx.stroke();
+        }
       }
     }
 
@@ -209,10 +225,11 @@ window.Games = (() => {
       player.vy = JUMP_STRENGTH;
       platforms = [];
 
-      // Создаем первую платформу строго под игроком
+      // Создаем первую платформу строго под игроком (без пружины — старт не должен взрывать)
       let currentY = H - 50;
       let firstPlatform = new Platform(currentY);
       firstPlatform.x = W / 2 - 35;
+      firstPlatform.spring = false;
       platforms.push(firstPlatform);
 
       // Генерируем остальные платформы с контролируемым шагом по высоте
@@ -223,15 +240,33 @@ window.Games = (() => {
       }
     }
 
-    // Управление клавиатурой
+    // Управление клавиатурой + тач/мышь (для телефона)
     const keys = {};
     const kd = (e) => { keys[e.code] = true; };
     const ku = (e) => { keys[e.code] = false; };
     window.addEventListener('keydown', kd);
     window.addEventListener('keyup', ku);
+
+    // Тач/перетаскивание пальцем — питомец тянется к пальцу по горизонтали
+    let pointerX = null;
+    const pd = (e) => {
+      e.preventDefault();
+      const r = canvas.getBoundingClientRect();
+      pointerX = (e.clientX - r.left) * (W / r.width);
+    };
+    const pu = () => { pointerX = null; };
+    canvas.addEventListener('pointerdown', pd);
+    canvas.addEventListener('pointermove', pd);
+    window.addEventListener('pointerup', pu);
+    window.addEventListener('pointercancel', pu);
+
     function clearInput(){
       window.removeEventListener('keydown', kd);
       window.removeEventListener('keyup', ku);
+      canvas.removeEventListener('pointerdown', pd);
+      canvas.removeEventListener('pointermove', pd);
+      window.removeEventListener('pointerup', pu);
+      window.removeEventListener('pointercancel', pu);
     }
 
     // Нахождение самой верхней платформы
@@ -248,8 +283,11 @@ window.Games = (() => {
       ctx.clearRect(0, 0, W, H);
 
       if (!gameOver) {
-        // Снизили скорость перемещения: было 6, стало 4.5
-        if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -4.5;
+        // Тач/мышь (палец тянет питомца) > клавиатура > плавное торможение
+        if (pointerX !== null) {
+          const target = pointerX - player.width / 2;
+          player.vx = Math.max(-MOVE_SPEED, Math.min(MOVE_SPEED, (target - player.x) * 0.4));
+        } else if (keys['ArrowLeft'] || keys['KeyA']) player.vx = -4.5;
         else if (keys['ArrowRight'] || keys['KeyD']) player.vx = 4.5;
         else player.vx *= 0.75; // Чуть более быстрое, но плавное торможение
 
@@ -277,6 +315,7 @@ window.Games = (() => {
               let gap = MIN_GAP + Math.random() * (MAX_GAP - MIN_GAP);
               p.y = highestY - gap;
               p.x = Math.random() * (W - p.width);
+              p.spring = Math.random() < SPRING_CHANCE;
             }
           });
         }
@@ -288,7 +327,7 @@ window.Games = (() => {
                 player.x < p.x + p.width &&
                 player.y + player.height >= p.y &&
                 player.y + player.height <= p.y + p.height + player.vy + 2) { // Добавлен запас +2 для точности
-                  player.vy = JUMP_STRENGTH;
+                  player.vy = p.spring ? SPRING_STRENGTH : JUMP_STRENGTH;
             }
           });
         }
