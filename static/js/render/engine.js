@@ -173,49 +173,6 @@ window.Engine = (() => {
     clearBudget(v){ budget = v }
   };
 
-  /* ---- FX для боя: hit-stop, slash-лента, impact-spark ---- */
-  const fx = {
-    _t: 0,
-    _init(){
-      Engine.onTick(dt => {
-        if (this._t > 0){
-          this._t -= dt*1000;
-          if (this._t <= 0){ Anim.freeze(false); this._t = 0; }
-        }
-        // анимация slash-лент
-        for (const s of this._slashes){
-          s.life -= dt*1000;
-          const k = Math.max(0, s.life / s.dur);
-          s.mesh.material.opacity = k * .9;
-          s.mesh.scale.setScalar(1 + (1-k)*.4);
-          s.mesh.rotation.z += dt*6;
-          if (s.life <= 0){ scene.remove(s.mesh); s.mesh.geometry.dispose(); s.mesh.material.dispose(); s.dead = true; }
-        }
-        if (this._slashes.length > 24) this._slashes = this._slashes.filter(s=>!s.dead);
-      });
-    },
-    hitstop(ms=90){ this._t = Math.max(this._t, ms); Anim.freeze(true); },
-    slash(pos, color=0xfff0c0, scale=1){
-      const curve = new THREE.QuadraticBezierCurve3(
-        new THREE.Vector3(-.5,0,0), new THREE.Vector3(0,.55,0), new THREE.Vector3(.5,0,0));
-      const geo = new THREE.TubeGeometry(curve, 12, .06*scale, 6, false);
-      const mat = new THREE.MeshBasicMaterial({color, transparent:true, opacity:.9,
-        blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide});
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(pos.x, pos.y, pos.z);
-      mesh.scale.setScalar(scale);
-      scene.add(mesh);
-      this._slashes.push({mesh, life:200, dur:200, dead:false});
-      if (this._slashes.length > 24) this._slashes = this._slashes.filter(s=>!s.dead);
-    },
-    impact(pos, color=0xffe08a, n=10){
-      particles.spawn("spark", pos, Math.ceil(n/2), .5);
-      particles.spawn("glow", pos, Math.ceil(n/2), .4);
-      lights.flash(color, .9, .35);
-    },
-    _slashes: [],
-  };
-
   /* ---- амбиент комнаты: живой фон всегда (док. 001 NO STATIC SCREEN) ---- */
   const AMBIENT = {
     living:{type:"dust", rate:.5}, kitchen:{type:"ember", rate:.25},
@@ -302,7 +259,7 @@ window.Engine = (() => {
       renderer.render(scene, camera);
     })();
 
-    fx._init();
+    // FX init removed with dungeon
 
     addEventListener("resize", ()=>{
       camera.aspect = innerWidth/innerHeight;
@@ -323,7 +280,7 @@ window.Engine = (() => {
   }
 
   return {
-    init, cam, lights, particles, raycast, emojiTex, fx,
+    init, cam, lights, particles, raycast, emojiTex,
     onTick(fn){ tickers.push(fn) },
     offTick(fn){ const i = tickers.indexOf(fn); if (i >= 0) tickers.splice(i, 1); },
     get scene(){ return scene }, get camera(){ return camera },

@@ -64,28 +64,6 @@ ALCHEMY_TAL_TTL = 86400       # талисман живёт 24ч после по
 # Алхимические символы плиток (для клиента; порядок = ранги 1..11)
 ALCHEMY_SYMS = ["💧","🫧","❄️","🔷","🔮","🩸","✨","🌟","⚗️","🧪","💠"]
 
-# ---- ПОДЗЕМЕЛЬЕ (roguelite-забег) ----
-DUNGEON_MAX_HP = 100
-DUNGEON_MAX_FLOOR = 50
-DUNGEON_COST_ENERGY = 15     # энергии за старт забега
-DUNGEON_REWARD_COIN = 20     # монет за пройденный этаж
-DUNGEON_BOSS_EVERY = 5       # босс каждые N этажей
-DUNGEON_MONSTERS = ["🦇","🕷️","🐀","💀","👹","🧟","🐍","👺","🦂","👻"]
-DUNGEON_BOSSES = ["🐉","👾","🦖","😈","🧌"]
-# метапрогресс: апгрейды за токены (cost — список цен по уровням 1..max)
-DUNGEON_UPGRADES = {
-    "hp":    {"name":"Жизни","desc":"+20 к макс. HP","max":5,"cost":[50,120,250,500,1000]},
-    "power": {"name":"Сила","desc":"+3 урона за удар","max":5,"cost":[50,120,250,500,1000]},
-    "crit":  {"name":"Крит","desc":"+6% шанс крита x2","max":5,"cost":[80,180,350,700,1400]},
-    "regen": {"name":"Реген","desc":"+4 HP после этажа","max":5,"cost":[80,180,350,700,1400]},
-}
-DUNGEON_LOOT = [  # базовый лут: (ключ, шанс, эмодзи, имя)
-    ("ingr", 0.55, "🧪", "Ингредиент"),
-    ("coin", 0.30, "🪙", "Монеты"),
-    ("skin", 0.10, "🎽", "Скин"),
-    ("token",0.05, "🎟️", "Токен"),
-]
-
 # ---- АРЕНА ----
 CHARGE_PER_GAME = 34        # заряд за раунд мини-игры
 CHARGE_PER_CARE = 10        # заряд за кормление/мытьё/сон
@@ -149,9 +127,6 @@ QUEST_POOL = [
     {"id":"sleep","text":"Уложить питомца спать","type":"sleep","goal":1,"reward":30},
     {"id":"earn60","text":"Заработать 60 монет","type":"earn","goal":60,"reward":50},
     {"id":"full","text":"Сытость до 100","type":"full","goal":1,"reward":45},
-    {"id":"dg3","text":"Спустись на 3 этажа Подземелья","type":"dungeonfloor","goal":3,"reward":70},
-    {"id":"dg10","text":"Спустись на 10 этажей Подземелья","type":"dungeonfloor","goal":10,"reward":200},
-    {"id":"dg5","text":"Заверши 5 забегов в Подземелье","type":"dungeon","goal":5,"reward":250},
 ]
 
 ACHIEVEMENTS = {
@@ -168,9 +143,6 @@ ACHIEVEMENTS = {
     "war5":{"name":"Боец","desc":"5 побед на Арене","reward":200},
     "war25":{"name":"Гладиатор","desc":"25 побед на Арене","reward":600},
     "gold_league":{"name":"Золотая лига","desc":"Достичь Золота","reward":400},
-    "delver5":{"name":"Искатель","desc":"5 этаж Подземелья","reward":120},
-    "delver20":{"name":"Глубокий спуск","desc":"20 этаж Подземелья","reward":500},
-    "boss1":{"name":"Убийца боссов","desc":"Победить босса","reward":300},
 }
 
 # ---------- БАЗА ----------
@@ -228,20 +200,6 @@ def init_db():
             ("alchemy_talismans","TEXT DEFAULT '[]'"),
             ("alchemy_tal_day",  "INTEGER DEFAULT 0"),
             ("mine_boost",       "REAL DEFAULT 0")):
-            try: c.execute(f"ALTER TABLE players ADD COLUMN {col} {coltype}")
-            except: pass
-        # migration: add dungeon columns if missing
-        for col, coltype in (
-            ("dungeon_token",     "TEXT DEFAULT ''"),
-            ("dungeon_started",   "REAL DEFAULT 0"),
-            ("dungeon_floor",     "INTEGER DEFAULT 0"),
-            ("dungeon_hp",        "INTEGER DEFAULT 0"),
-            ("dungeon_seed",      "TEXT DEFAULT ''"),
-            ("dungeon_deepest",   "INTEGER DEFAULT 0"),
-            ("dungeon_upgrades",  "TEXT DEFAULT '{}'"),
-            ("dungeon_last_day",  "INTEGER DEFAULT 0"),
-            ("dungeon_ingr",      "INTEGER DEFAULT 0"),
-            ("dungeon_bosses",    "INTEGER DEFAULT 0")):
             try: c.execute(f"ALTER TABLE players ADD COLUMN {col} {coltype}")
             except: pass
 
@@ -387,9 +345,6 @@ def check_achievements(p):
     if p["wins"] >= 5: unlock("war5")
     if p["wins"] >= 25: unlock("war25")
     if league_of(p["trophies"]) >= 3: unlock("gold_league")
-    if p["dungeon_deepest"] >= 5: unlock("delver5")
-    if p["dungeon_deepest"] >= 20: unlock("delver20")
-    if p["dungeon_bosses"] >= 1: unlock("boss1")
     if new:
         p["ach"] = json.dumps(got); save(p, "ach", "coins")
     return new
@@ -431,19 +386,6 @@ def public_state(p, extra=None):
             "locked": p["alchemy_tal_day"] == today_n(),
             "boost": ALCHEMY_BOOST, "tal_ttl": ALCHEMY_TAL_TTL,
             "boost_ready": p["mine_boost"] > 0,
-        },
-        "dungeon": {
-            "in_run": bool(p["dungeon_floor"]),
-            "floor": p["dungeon_floor"], "hp": p["dungeon_hp"],
-            "max_hp": DUNGEON_MAX_HP,
-            "deepest": p["dungeon_deepest"],
-            "upgrades": json.loads(p["dungeon_upgrades"]),
-            "ingr": p["dungeon_ingr"],
-            "bosses": p["dungeon_bosses"],
-            "cost_energy": DUNGEON_COST_ENERGY,
-            "boss_every": DUNGEON_BOSS_EVERY,
-            "max_floor": DUNGEON_MAX_FLOOR,
-            "upgrade_defs": DUNGEON_UPGRADES,
         },
         "game_cd": max(0, int(GAME_COOLDOWN - (now - p["last_game"]))),
         "simon_cd": max(0, int(GAME_COOLDOWN - (now - p["last_simon"]))),
@@ -874,140 +816,6 @@ async def api_alchemy_boost(request):
     return ok(p)
 
 # ---- ПОДЗЕМЕЛЬЕ (roguelite) ----
-def dungeon_maxhp(p):
-    up = json.loads(p["dungeon_upgrades"])
-    return DUNGEON_MAX_HP + 20 * int(up.get("hp", 0))
-
-def dungeon_monster(seed, floor, up):
-    # детерминированный монстр этажа (сервер = истина, клиент симулирует бой)
-    h = abs(hash((seed, floor))) % 100000
-    is_boss = (floor % DUNGEON_BOSS_EVERY == 0)
-    pool = DUNGEON_BOSSES if is_boss else DUNGEON_MONSTERS
-    emoji = pool[h % len(pool)]
-    power = int(up.get("power", 0))
-    base = floor * 6 + 14
-    hp = int(base * (2.4 if is_boss else 1) + 10)
-    atk = int((4 + floor * 0.9) * (1.5 if is_boss else 1))
-    dmg = 8 + power * 3
-    return {"floor": floor, "emoji": emoji, "hp": hp, "atk": atk, "dmg": dmg, "boss": is_boss}
-
-def dungeon_roll_loot(p, floor):
-    h = abs(hash((p["dungeon_seed"], floor, "loot"))) % 100000 / 100000.0
-    got = []
-    for key, chance, emo, name in DUNGEON_LOOT:
-        hh = abs(hash((p["dungeon_seed"], floor, key))) % 100000 / 100000.0
-        if hh < chance:
-            if key == "coin":
-                amt = floor * 5 + 10; p["coins"] += amt; got.append({"key":key,"emo":emo,"name":name,"amt":amt})
-            elif key == "ingr":
-                p["dungeon_ingr"] += 1; got.append({"key":key,"emo":emo,"name":name,"amt":1})
-            elif key == "token":
-                p["tokens"] += 1; got.append({"key":key,"emo":emo,"name":name,"amt":1})
-            elif key == "skin":
-                got.append({"key":key,"emo":emo,"name":name,"amt":1})
-    return got
-
-async def api_dungeon_start(request):
-    p = await auth(request)
-    if p["dungeon_floor"]:
-        return err("Подземелье уже активно — заверши текущий забег")
-    if p["energy"] < DUNGEON_COST_ENERGY:
-        return err(f"Мало энергии (нужно {DUNGEON_COST_ENERGY}) — уложи питомца спать 🌙")
-    p["dungeon_token"] = secrets.token_hex(8)
-    p["dungeon_started"] = time.time()
-    p["dungeon_floor"] = 1
-    p["dungeon_hp"] = dungeon_maxhp(p)
-    p["dungeon_seed"] = str(random.randint(0, 1 << 31))
-    p["energy"] = max(0, p["energy"] - DUNGEON_COST_ENERGY)
-    up = json.loads(p["dungeon_upgrades"])
-    save(p, "dungeon_token","dungeon_started","dungeon_floor","dungeon_hp",
-         "dungeon_seed","energy")
-    return ok(p, token=p["dungeon_token"],
-              monster=dungeon_monster(p["dungeon_seed"], 1, up),
-              max_hp=dungeon_maxhp(p), new_ach=check_achievements(p))
-
-async def api_dungeon_action(request):
-    p = await auth(request); body = request["body"]
-    if not p["dungeon_floor"] or not p["dungeon_token"] or body.get("token") != p["dungeon_token"]:
-        return err("Забег не активен")
-    action = body.get("action", "")
-    up = json.loads(p["dungeon_upgrades"])
-    if action == "clear":
-        # клиент выиграл бой на текущем этаже -> лут + переход
-        floor = p["dungeon_floor"]
-        loot = dungeon_roll_loot(p, floor)
-        p["coins"] += DUNGEON_REWARD_COIN
-        p["dungeon_deepest"] = max(p["dungeon_deepest"], floor)
-        if floor % DUNGEON_BOSS_EVERY == 0:
-            p["dungeon_bosses"] += 1
-        bump_quest(p, "dungeonfloor", 1)
-        # реген после этажа
-        regen = 4 * int(up.get("regen", 0))
-        p["dungeon_hp"] = min(dungeon_maxhp(p), p["dungeon_hp"] + regen)
-        if floor >= DUNGEON_MAX_FLOOR:   # вершина — забег завершён
-            p["dungeon_floor"] = 0; p["dungeon_token"] = ""
-            save(p, "dungeon_hp","dungeon_deepest","dungeon_bosses","coins","dungeon_ingr",
-                 "dungeon_floor","dungeon_token","quests")
-            bump_quest(p, "dungeon", 1)
-            return ok(p, cleared=floor, loot=loot, finished=True,
-                      new_ach=check_achievements(p))
-        nf = floor + 1
-        p["dungeon_floor"] = nf
-        p["dungeon_hp"] = min(p["dungeon_hp"], dungeon_maxhp(p))
-        save(p, "dungeon_hp","dungeon_deepest","dungeon_bosses","coins","dungeon_ingr",
-             "dungeon_floor","quests")
-        return ok(p, cleared=floor, loot=loot, finished=False,
-                  monster=dungeon_monster(p["dungeon_seed"], nf, up),
-                  max_hp=dungeon_maxhp(p), new_ach=check_achievements(p))
-    if action == "hp":
-        # клиент сообщает HP после боя (авторитет клиента, но капаем к max_hp)
-        hp = int(body.get("hp", 0))
-        p["dungeon_hp"] = max(0, min(dungeon_maxhp(p), hp))
-        if p["dungeon_hp"] <= 0:     # умер — забег окончен
-            p["dungeon_floor"] = 0; p["dungeon_token"] = ""
-            save(p, "dungeon_hp","dungeon_floor","dungeon_token")
-            return ok(p, dead=True, new_ach=check_achievements(p))
-        save(p, "dungeon_hp")
-        return ok(p)
-    if action == "leave":
-        floor = p["dungeon_floor"]
-        p["dungeon_deepest"] = max(p["dungeon_deepest"], floor - 1)
-        p["dungeon_floor"] = 0; p["dungeon_token"] = ""
-        save(p, "dungeon_deepest","dungeon_floor","dungeon_token")
-        bump_quest(p, "dungeon", 1)
-        return ok(p, left_floor=floor, new_ach=check_achievements(p))
-    return err("Некорретное действие")
-
-async def api_dungeon_resume(request):
-    p = await auth(request)
-    if not p["dungeon_floor"] or not p["dungeon_token"]:
-        return err("Нет активного забега")
-    up = json.loads(p["dungeon_upgrades"])
-    return ok(p, token=p["dungeon_token"],
-              monster=dungeon_monster(p["dungeon_seed"], p["dungeon_floor"], up),
-              max_hp=dungeon_maxhp(p), new_ach=check_achievements(p))
-
-async def api_dungeon_upgrade(request):
-    p = await auth(request)
-    key = request["body"].get("key", "")
-    if key not in DUNGEON_UPGRADES:
-        return err("Нет такого улучшения")
-    up = json.loads(p["dungeon_upgrades"])
-    lvl = int(up.get(key, 0))
-    defs = DUNGEON_UPGRADES[key]
-    if lvl >= defs["max"]:
-        return err("Улучшение максимального уровня")
-    cost = defs["cost"][lvl]
-    if p["tokens"] < cost:
-        return err(f"Нужно {cost} 🎟️ (токенов)")
-    p["tokens"] -= cost
-    up[key] = lvl + 1
-    p["dungeon_upgrades"] = json.dumps(up)
-    # апгрейд HP сразу поднимает текущий максимум (если не в забеге)
-    if key == "hp" and not p["dungeon_floor"]:
-        pass
-    save(p, "tokens","dungeon_upgrades")
-    return ok(p, new_ach=check_achievements(p))
 
 async def api_battle_start(request):
     p = await auth(request)
@@ -1180,8 +988,7 @@ async def main():
                  "game_start","game_finish","simon_start","simon_finish",
                  "fishing_start","fishing_finish","mine_spin",
                   "alchemy_move","alchemy_boost",
-                  "dungeon_start","dungeon_action","dungeon_upgrade","dungeon_resume",
-                  "battle_start","battle_finish","arena_buy",
+                   "battle_start","battle_finish","arena_buy",
                  "claim_quest","buy","equip","top"):
         app.router.add_post(f"/api/{name}", globals()[f"api_{name}"])
     runner = web.AppRunner(app); await runner.setup()

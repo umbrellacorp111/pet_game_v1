@@ -1252,18 +1252,10 @@ window.Games = (() => {
     });
   }
 
-  /* ---------- ѕќƒ«≈ћ≈Ћ№≈ > делегируем в dungeon.js (roguelite-файтинг) ---------- */
-  function startDungeon(){ try { Dungeon.start() } catch(e){ console.error("[startDungeon]", e) } }
-  function exitDungeon(){ try { Dungeon.exit() } catch(e){ console.error("[exitDungeon]", e) } }
-  function openDungeonTut(){ try { Dungeon.openTut() } catch(e){ console.error("[openDungeonTut]", e) } }
-  function dungeonUpgrade(k){ try { Dungeon.upgrade(k) } catch(e){ console.error("[dungeonUpgrade]", e) } }
-
   return { bind, startCatch, closeCatch, exitCatch, startSimon, closeSimon, exitSimon, runCatch,
            startFishing, closeFishing, exitFishing,
            startMine, exitMine, openMineTut,
            openMineTal, closeMineTal,
            startAlchemy, exitAlchemy, openAlcTut,
-           startDungeon, exitDungeon, openDungeonTut,
-           dungeonUpgrade,
            get G(){ return G } };
 })();

@@ -282,79 +282,6 @@
   </div>
 </div>
 
-<!-- МИНИ-ИГРА: Подземелье (roguelite) -->
-<div class="gameOv dgOv" id="dungeonOv">
-  <div class="gHud">
-    <span class="font-d" style="font-size:13px">🗡️ ПОДЗЕМЕЛЬЕ</span>
-    <span class="gScore" id="dgCoins">0 🪙</span>
-    <span class="gScore" id="dgTokens" style="color:#ffd76a">0 🎟️</span>
-    <button class="gHelp" onclick="Dungeon.openTut()">?</button>
-    <button class="gExit" onclick="Dungeon.exit()">✕</button>
-  </div>
-
-  <!-- ХАБ: метапрогресс -->
-  <div class="dgHub" id="dgHub">
-    <div class="dgStatRow">
-      <span>Глубина <b id="dgDeepest">0/50</b></span>
-      <span>Ингредиенты <b id="dgIngr">0</b> 🧪</span>
-    </div>
-    <div class="dgUpgTitle">УЛУЧШЕНИЯ (за 🎟️)</div>
-    <div class="dgUpgList" id="dgUpgList"></div>
-    <button class="btn dgEnter" id="dgEnter">⚔️ СПУСТИТЬСЯ</button>
-    <small class="dgHint">Спускайся глубже, бейся с чудовищами, собирай лут. Чем глубже — тем редчее добыча.</small>
-  </div>
-
-  <!-- БОЙ (roguelite-файтинг) -->
-  <div class="dgArena" id="dgArena" style="display:none">
-    <div class="dgFloorLbl" id="dgFloor">ЭТАЖ 1</div>
-    <div class="dgCombo" id="dgCombo" style="opacity:0">x0</div>
-
-    <div class="dgBar enemy"><div class="dgBarFill enemy" id="dgEnemyHpFill"></div></div>
-
-    <div class="dgFloat" id="dgFloat"></div>
-
-    <div class="dgBar mine" id="dgMyHp"><div class="dgBarFill mine" id="dgMyHpFill"></div>
-      <span class="dgHpTxt" id="dgMyHpTxt">100/100</span></div>
-
-    <div class="dgKi">
-      <div class="dgKiBar"><div class="dgKiFill" id="dgKiFill"></div></div>
-      <button class="dgKiBtn" id="dgKiBtn">КИ!</button>
-    </div>
-
-    <div class="dgLoot" id="dgLoot"></div>
-
-    <div class="dgBtns">
-      <button class="dgBtn atk" id="dgAtk">⚔ АТАКА</button>
-      <button class="dgBtn dodge" id="dgDodge">↪ УКЛОН</button>
-      <button class="dgBtn block" id="dgBlock">🛡 БЛОК</button>
-      <button class="dgBtn leave" id="dgLeave">🚪 ВЫХОД</button>
-    </div>
-    <small class="dgHint">Бей, накапливай КИ, трансформируйся и спускайся глубже!</small>
-  </div>
-</div>
-
-<!-- ПОДСКАЗКА: Подземелье -->
-<div class="overlay" id="dgTut">
-  <div class="mineTutCard">
-    <div class="mineTutTitle font-d">ПОДЗЕМЕЛЬЕ 🗡️</div>
-    <div class="mineTutBody">
-      <div class="mineTutStep"><span class="mineTutNum">1</span>
-        <span>Спустись в подземелье — тратится <b>энергия</b></span></div>
-      <div class="mineTutStep"><span class="mineTutNum">2</span>
-        <span><b>АТАКА</b> — бей врага (комбо усиливает удары), <b>УКЛОН</b> — избегай, <b>БЛОК</b> — гасит урон</span></div>
-      <div class="mineTutStep"><span class="mineTutNum">3</span>
-        <span>Копи <b>КИ</b> — при полной шкале «КИ!» даёт <b>трансформацию</b> (×1.6), иначе <b>ки-взрыв</b> (×4)</span></div>
-      <div class="mineTutStep"><span class="mineTutNum">4</span>
-        <span>Победил — <b>лут</b> и спуск <b>глубже</b>. Босс каждые <b>5 этажей</b></span></div>
-      <div class="mineTutStep"><span class="mineTutNum">5</span>
-        <span>Умер — забег окончен, глубина <b>записывается</b></span></div>
-      <div class="mineTutStep"><span class="mineTutNum">6</span>
-        <span>Трать <b>🎟️ токены</b> на улучшения, чтобы спускаться глубже</span></div>
-    </div>
-    <button class="btn mineTutBtn" id="dgTutBtn">Я ПОНЯЛ</button>
-  </div>
-</div>
-
 <!-- ОКНО ТАЛИСМАНОВ В ШАХТЕ -->
 <div class="overlay" id="mineTalOv">
   <div class="modal glass mineTalModal">
@@ -416,10 +343,8 @@
 <script src="/static/js/character/retarget.js?v=20260711a"></script>
 <script src="/static/js/character/hero.js?v=20260711a"></script>
 <script src="/static/js/character/animator.js?v=20260713c"></script>
-<script src="/static/js/character/stickman.js?v=20260713c"></script>
 <script src="/static/js/game/ui.js?v=20260713c"></script>
 <script src="/static/js/game/games.js?v=20260713c"></script>
-<script src="/static/js/game/dungeon.js?v=20260713b"></script>
 <script src="/static/js/game/arena.js?v=20260708d"></script>
 <script src="/static/js/game/main.js?v=20260711c"></script>
 </body>
