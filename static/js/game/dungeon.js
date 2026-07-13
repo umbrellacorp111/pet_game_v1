@@ -5,6 +5,7 @@
 (function(){
   const $ = id => document.getElementById(id);
   function st(){ return GS.S && GS.S.dungeon; }
+  function pdf(d){ return d && (d.dungeon_floor ? d.dungeon_floor : 0); }
 
   let DG = null;
   let enemy = null;          // Stickman-стейт
@@ -71,8 +72,8 @@
     if (!d){ return; }
     GS.set("S", d);
     DG.token = d.token || ""; DG.inRun = true; DG.dead = false;
-    DG.floor = d.dungeon.floor; DG.maxHp = d.max_hp; DG.hp = d.dungeon.hp;
-    startFloor(d.dungeon.floor, d.dungeon.seed);
+    DG.floor = d.dungeon_floor; DG.maxHp = d.max_hp; DG.hp = d.dungeon_hp;
+    startFloor(d.dungeon_floor, d.dungeon_seed);
     render(); hap("medium");
   }
   async function resume(){
@@ -83,8 +84,8 @@
     if (!d){ return; }
     GS.set("S", d);
     DG.token = d.token || ""; DG.inRun = true; DG.dead = false;
-    DG.floor = d.dungeon.floor; DG.maxHp = d.max_hp; DG.hp = d.dungeon.hp;
-    startFloor(d.dungeon.floor, d.dungeon.seed);
+    DG.floor = d.dungeon_floor; DG.maxHp = d.max_hp; DG.hp = d.dungeon_hp;
+    startFloor(d.dungeon_floor, d.dungeon_seed);
     render(); hap("medium");
   }
   function startFloor(floor, seed){
@@ -191,7 +192,7 @@
       DG.busy = false;
       if (!d){ return; }
       GS.set("S", d);
-      if (d.finished || d.loot === undefined){
+      if (!pdf(d)){
         DG.inRun = false; showLoot(d.loot || []);
         UI.toast("🏆 Вершина пройдена! Глубина " + (d.cleared||DG.floor), false);
         Sfx.play("fanfare"); hap("ok"); UI.confetti();
@@ -199,7 +200,7 @@
       }
       showLoot(d.loot || []);
       if (enemy){ Engine.scene.remove(enemy.group); enemy = null; }
-      startFloor(d.dungeon.floor, d.dungeon.seed);
+      startFloor(d.dungeon_floor, d.dungeon_seed);
       render();
     }, 700);
   }
@@ -249,8 +250,8 @@
     const s = st(); if (!s || !DG) return;
     $("dgCoins").textContent = (GS.S.coins||0) + " 🪙";
     $("dgTokens").textContent = (GS.S.tokens||0) + " 🎟️";
-    if (s.in_run){
-      if (!DG.inRun || !DG.monster){ resume(); return; }
+    if (DG.inRun){
+      if (!DG.monster){ resume(); return; }
       $("dgHub").style.display = "none";
       $("dgArena").style.display = "block";
       $("dgFloor").textContent = "Этаж " + DG.floor + (enemy && enemy.boss ? " 👹БОСС" : "");
