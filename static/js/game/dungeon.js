@@ -35,7 +35,12 @@
 
   /* ---------- вход / выход ---------- */
   function start(){
-    try { if (!Prefs.data.dungeonTutSeen){ showTut(true); return; } launch(); }
+    try {
+      if (!Prefs.data.dungeonTutSeen){ showTut(true); return; }
+      // если на сервере забег уже активен — сразу возобновляем бой
+      if (st() && st().in_run){ launch(); resume(); return; }
+      launch();
+    }
     catch(e){ console.error("[dungeon.start]", e) }
   }
   function launch(){
@@ -65,16 +70,20 @@
   /* ---------- старт забега ---------- */
   async function enter(){
     if (!DG || DG.busy) return;
-    if ((GS.S.energy||0) < (st().cost_energy||15)){ UI.toast("Нет энергии 🌙", true); Sfx.play("err"); return; }
+    if ((GS.S.energy||0) < ((st() && st().cost_energy) || 15)){ UI.toast("Нет энергии 🌙", true); Sfx.play("err"); return; }
     DG.busy = true; Sfx.play("swoosh");
     const d = await Api.call("dungeon_start", {});
     DG.busy = false;
     if (!d){ return; }
-    GS.set("S", d);
-    DG.token = d.token || ""; DG.inRun = true; DG.dead = false;
-    DG.floor = d.dungeon_floor; DG.maxHp = d.max_hp; DG.hp = d.dungeon_hp;
-    startFloor(d.dungeon_floor, d.dungeon_seed);
-    render(); hap("medium");
+    // сервер считает забег уже активным (напр. предыдущий вход упал на клиенте) -> добьём через resume
+    if (d.error && /уже активно/i.test(d.error)){ return resume(); }
+    try {
+      GS.set("S", d);
+      DG.token = d.token || ""; DG.inRun = true; DG.dead = false;
+      DG.floor = d.dungeon_floor; DG.maxHp = d.max_hp; DG.hp = d.dungeon_hp;
+      startFloor(d.dungeon_floor, d.dungeon_seed);
+      render(); hap("medium");
+    } catch(e){ console.error("[dungeon.enter]", e); UI.toast("Ошибка входа: " + e.message, true); }
   }
   async function resume(){
     if (!DG || DG.busy) return;
@@ -82,11 +91,13 @@
     const d = await Api.call("dungeon_resume", {});
     DG.busy = false;
     if (!d){ return; }
-    GS.set("S", d);
-    DG.token = d.token || ""; DG.inRun = true; DG.dead = false;
-    DG.floor = d.dungeon_floor; DG.maxHp = d.max_hp; DG.hp = d.dungeon_hp;
-    startFloor(d.dungeon_floor, d.dungeon_seed);
-    render(); hap("medium");
+    try {
+      GS.set("S", d);
+      DG.token = d.token || ""; DG.inRun = true; DG.dead = false;
+      DG.floor = d.dungeon_floor; DG.maxHp = d.max_hp; DG.hp = d.dungeon_hp;
+      startFloor(d.dungeon_floor, d.dungeon_seed);
+      render(); hap("medium");
+    } catch(e){ console.error("[dungeon.resume]", e); UI.toast("Ошибка возобновления: " + e.message, true); }
   }
   function startFloor(floor, seed){
     if (enemy){ Engine.scene.remove(enemy.group); enemy = null; }
